@@ -1,9 +1,9 @@
 'use server'
 
 import { db } from '@/db'
-import { notificationPrefs } from '@/db/schema'
-import { eq, and, isNull } from 'drizzle-orm'
-import type { NotificationPref } from '@/types'
+import { notificationPrefs, notifications } from '@/db/schema'
+import { eq, and, isNull, isNotNull, desc } from 'drizzle-orm'
+import type { Notification, NotificationPref } from '@/types'
 
 export async function getNotificationPrefs(userId: string): Promise<NotificationPref | null> {
   const rows = await db
@@ -43,4 +43,52 @@ export async function upsertNotificationPrefs(
       inAppEnabled: prefs.inAppEnabled,
     })
   }
+}
+
+// ─── In-app notification actions ──────────────────────────────────────────────
+
+export async function getUserNotifications(
+  userId: string,
+  limit = 10,
+): Promise<Notification[]> {
+  return db
+    .select()
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        eq(notifications.channel, 'in_app'),
+      ),
+    )
+    .orderBy(desc(notifications.sentAt))
+    .limit(limit)
+}
+
+export async function markNotificationRead(
+  notificationId: string,
+  userId: string,
+): Promise<void> {
+  await db
+    .update(notifications)
+    .set({ readAt: new Date() })
+    .where(
+      and(
+        eq(notifications.id, notificationId),
+        eq(notifications.userId, userId),
+        isNotNull(notifications.channel),
+      ),
+    )
+}
+
+export async function createInAppNotification(
+  userId: string,
+  documentId: string,
+  _message: string,
+): Promise<void> {
+  await db.insert(notifications).values({
+    userId,
+    documentId,
+    type: 'expiry_warning',
+    channel: 'in_app',
+  })
 }

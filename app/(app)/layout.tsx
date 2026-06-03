@@ -4,6 +4,7 @@ import { LayoutDashboard, Car, Settings } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from '@/components/logout-button'
+import { NotificationBell } from '@/components/notification-bell'
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -52,9 +53,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         {/* User info + logout */}
         <div className="border-t px-3 py-4 space-y-2">
-          <p className="truncate max-w-[160px] px-3 text-xs text-muted-foreground" title={user.email}>
-            {user.email}
-          </p>
+          <div className="flex items-center justify-between px-3">
+            <p className="truncate max-w-[120px] text-xs text-muted-foreground" title={user.email}>
+              {user.email}
+            </p>
+            <NotificationBell userId={user.id} />
+          </div>
           <LogoutButton />
         </div>
       </aside>
