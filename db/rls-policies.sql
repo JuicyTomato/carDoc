@@ -56,7 +56,7 @@ CREATE POLICY "documents_select" ON documents FOR SELECT
     ))
   );
 
-CREATE POLICY "documents_editor_manage" ON documents FOR INSERT, UPDATE, DELETE
+CREATE POLICY "documents_editor_manage" ON documents FOR ALL
   USING (
     vehicle_id IN (SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid() AND role IN ('admin','editor'))
   );
@@ -81,7 +81,7 @@ CREATE POLICY "doc_files_select" ON document_files FOR SELECT
     )
   );
 
-CREATE POLICY "doc_files_editor_manage" ON document_files FOR INSERT, UPDATE, DELETE
+CREATE POLICY "doc_files_editor_manage" ON document_files FOR ALL
   USING (
     document_id IN (
       SELECT d.id FROM documents d
@@ -108,7 +108,7 @@ CREATE POLICY "insurance_details_select" ON insurance_details FOR SELECT
     )
   );
 
-CREATE POLICY "insurance_details_editor_manage" ON insurance_details FOR INSERT, UPDATE, DELETE
+CREATE POLICY "insurance_details_editor_manage" ON insurance_details FOR ALL
   USING (
     document_id IN (
       SELECT d.id FROM documents d
@@ -135,7 +135,7 @@ CREATE POLICY "revision_details_select" ON revision_details FOR SELECT
     )
   );
 
-CREATE POLICY "revision_details_editor_manage" ON revision_details FOR INSERT, UPDATE, DELETE
+CREATE POLICY "revision_details_editor_manage" ON revision_details FOR ALL
   USING (
     document_id IN (
       SELECT d.id FROM documents d
@@ -162,7 +162,7 @@ CREATE POLICY "maintenance_details_select" ON maintenance_details FOR SELECT
     )
   );
 
-CREATE POLICY "maintenance_details_editor_manage" ON maintenance_details FOR INSERT, UPDATE, DELETE
+CREATE POLICY "maintenance_details_editor_manage" ON maintenance_details FOR ALL
   USING (
     document_id IN (
       SELECT d.id FROM documents d
