@@ -5,10 +5,12 @@ import { Plus, Car, Bike, Truck, HelpCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getVehicle } from '@/lib/actions/vehicles'
 import { getDocuments } from '@/lib/actions/documents'
+import { getVehicleAccessList } from '@/lib/actions/access'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import VehicleAccessSection from '@/components/settings/VehicleAccessSection'
 import type { Document, DocumentType } from '@/types'
 
 // ─── Expiry badge ──────────────────────────────────────────────────────────────
@@ -124,7 +126,13 @@ export default async function VehicleDetailPage({
   const vehicle = await getVehicle(params.id, user.id).catch(() => null)
   if (!vehicle) notFound()
 
-  const docs = await getDocuments(params.id, user.id).catch(() => [])
+  const [docs, accessList] = await Promise.all([
+    getDocuments(params.id, user.id).catch(() => []),
+    getVehicleAccessList(params.id, user.id).catch(() => []),
+  ])
+
+  const myAccess = accessList.find((e) => e.userId === user.id)
+  const isVehicleAdmin = myAccess?.role === 'admin'
 
   const docsByType = (type: DocumentType) => docs.filter((d) => d.type === type)
 
@@ -189,6 +197,17 @@ export default async function VehicleDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Access management */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Gestisci accessi</h2>
+        <VehicleAccessSection
+          vehicleId={vehicle.id}
+          initialAccessList={accessList}
+          currentUserId={user.id}
+          isAdmin={isVehicleAdmin}
+        />
+      </div>
 
       {/* Documents tabs */}
       <Tabs defaultValue="insurance">
