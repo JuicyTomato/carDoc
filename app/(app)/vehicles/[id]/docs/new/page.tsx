@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { createDocument } from '@/lib/actions/documents'
-import { getUploadUrl } from '@/lib/actions/files'
+import { getUploadUrl, createUploadFileRecord } from '@/lib/actions/files'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -161,7 +161,7 @@ export default function NewDocumentPage() {
 
       // Handle file upload
       if (fileTab === 'upload' && uploadFile) {
-        const { signedUrl } = await getUploadUrl(
+        const { signedUrl, storagePath } = await getUploadUrl(
           docId,
           uploadFile.name,
           uploadFile.type,
@@ -176,6 +176,13 @@ export default function NewDocumentPage() {
 
         if (!uploadRes.ok) {
           console.error('File upload failed, but document was created')
+        } else {
+          await createUploadFileRecord(
+            docId,
+            storagePath,
+            uploadFile.name,
+            uploadFile.type,
+          )
         }
       }
 

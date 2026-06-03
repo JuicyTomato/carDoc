@@ -2,7 +2,7 @@
 
 import { db } from '@/db'
 import { organizations, orgMembers, vehicles, vehicleAccess } from '@/db/schema'
-import { eq, and, isNull, inArray } from 'drizzle-orm'
+import { eq, and, isNull, inArray, or } from 'drizzle-orm'
 import type { Vehicle, VehicleType } from '@/types'
 import { createClient } from '@/lib/supabase/server'
 
@@ -90,20 +90,31 @@ async function assertVehicleAccess(
 // ─── Vehicle queries ──────────────────────────────────────────────────────────
 
 export async function getVehicles(userId: string): Promise<Vehicle[]> {
-  // Get vehicleIds user has access to
   const accessRows = await db
     .select({ vehicleId: vehicleAccess.vehicleId })
     .from(vehicleAccess)
     .where(eq(vehicleAccess.userId, userId))
 
-  if (accessRows.length === 0) return []
+  const adminOrgRows = await db
+    .select({ orgId: orgMembers.orgId })
+    .from(orgMembers)
+    .where(and(eq(orgMembers.userId, userId), eq(orgMembers.role, 'admin')))
 
   const vehicleIds = accessRows.map((r) => r.vehicleId)
+  const adminOrgIds = adminOrgRows.map((r) => r.orgId)
+
+  if (vehicleIds.length === 0 && adminOrgIds.length === 0) return []
+
+  const conditions = [isNull(vehicles.archivedAt)]
+  const accessConditions = []
+  if (vehicleIds.length > 0) accessConditions.push(inArray(vehicles.id, vehicleIds))
+  if (adminOrgIds.length > 0) accessConditions.push(inArray(vehicles.orgId, adminOrgIds))
+  conditions.push(or(...accessConditions)!)
 
   return db
     .select()
     .from(vehicles)
-    .where(and(inArray(vehicles.id, vehicleIds), isNull(vehicles.archivedAt)))
+    .where(and(...conditions))
 }
 
 export async function getVehicle(
