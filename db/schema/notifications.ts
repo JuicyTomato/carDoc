@@ -1,14 +1,18 @@
 import {
   pgTable,
+  pgEnum,
   uuid,
   text,
   integer,
   boolean,
   timestamp,
   unique,
+  index,
 } from 'drizzle-orm/pg-core'
 import { vehicles } from './vehicles'
 import { documents } from './documents'
+
+export const notificationChannel = pgEnum('notification_channel', ['email', 'in_app'])
 
 export const notificationPrefs = pgTable(
   'notification_prefs',
@@ -30,14 +34,18 @@ export const notificationPrefs = pgTable(
   }),
 )
 
-export const notifications = pgTable('notifications', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull(),
-  documentId: uuid('document_id').references(() => documents.id, {
-    onDelete: 'cascade',
-  }),
-  type: text('type').default('expiry_warning'),
-  channel: text('channel'),
-  sentAt: timestamp('sent_at').defaultNow(),
-  readAt: timestamp('read_at'),
-})
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull(),
+    documentId: uuid('document_id').references(() => documents.id, {
+      onDelete: 'cascade',
+    }),
+    type: text('type').default('expiry_warning'),
+    channel: notificationChannel('channel'),
+    sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (table) => [index('notifications_user_id_idx').on(table.userId)],
+)

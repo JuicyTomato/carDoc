@@ -61,18 +61,116 @@ CREATE POLICY "documents_editor_manage" ON documents FOR INSERT, UPDATE, DELETE
     vehicle_id IN (SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid() AND role IN ('admin','editor'))
   );
 
--- document_files, insurance_details, revision_details, maintenance_details: inherit via document
+-- Helper subquery: documents accessible to the current user (via vehicle_access or org admin)
+-- Used by document_files and detail table policies.
+
+-- document_files: inherit access from document → vehicle chain
 CREATE POLICY "doc_files_select" ON document_files FOR SELECT
-  USING (document_id IN (SELECT id FROM documents));
+  USING (
+    document_id IN (
+      SELECT d.id FROM documents d
+      WHERE d.vehicle_id IN (
+        SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid()
+      )
+      OR d.vehicle_id IN (
+        SELECT v.id FROM vehicles v
+        WHERE v.org_id IN (
+          SELECT org_id FROM org_members WHERE user_id = auth.uid() AND role = 'admin'
+        )
+      )
+    )
+  );
 
+CREATE POLICY "doc_files_editor_manage" ON document_files FOR INSERT, UPDATE, DELETE
+  USING (
+    document_id IN (
+      SELECT d.id FROM documents d
+      WHERE d.vehicle_id IN (
+        SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid() AND role IN ('admin', 'editor')
+      )
+    )
+  );
+
+-- insurance_details
 CREATE POLICY "insurance_details_select" ON insurance_details FOR SELECT
-  USING (document_id IN (SELECT id FROM documents));
+  USING (
+    document_id IN (
+      SELECT d.id FROM documents d
+      WHERE d.vehicle_id IN (
+        SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid()
+      )
+      OR d.vehicle_id IN (
+        SELECT v.id FROM vehicles v
+        WHERE v.org_id IN (
+          SELECT org_id FROM org_members WHERE user_id = auth.uid() AND role = 'admin'
+        )
+      )
+    )
+  );
 
+CREATE POLICY "insurance_details_editor_manage" ON insurance_details FOR INSERT, UPDATE, DELETE
+  USING (
+    document_id IN (
+      SELECT d.id FROM documents d
+      WHERE d.vehicle_id IN (
+        SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid() AND role IN ('admin', 'editor')
+      )
+    )
+  );
+
+-- revision_details
 CREATE POLICY "revision_details_select" ON revision_details FOR SELECT
-  USING (document_id IN (SELECT id FROM documents));
+  USING (
+    document_id IN (
+      SELECT d.id FROM documents d
+      WHERE d.vehicle_id IN (
+        SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid()
+      )
+      OR d.vehicle_id IN (
+        SELECT v.id FROM vehicles v
+        WHERE v.org_id IN (
+          SELECT org_id FROM org_members WHERE user_id = auth.uid() AND role = 'admin'
+        )
+      )
+    )
+  );
 
+CREATE POLICY "revision_details_editor_manage" ON revision_details FOR INSERT, UPDATE, DELETE
+  USING (
+    document_id IN (
+      SELECT d.id FROM documents d
+      WHERE d.vehicle_id IN (
+        SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid() AND role IN ('admin', 'editor')
+      )
+    )
+  );
+
+-- maintenance_details
 CREATE POLICY "maintenance_details_select" ON maintenance_details FOR SELECT
-  USING (document_id IN (SELECT id FROM documents));
+  USING (
+    document_id IN (
+      SELECT d.id FROM documents d
+      WHERE d.vehicle_id IN (
+        SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid()
+      )
+      OR d.vehicle_id IN (
+        SELECT v.id FROM vehicles v
+        WHERE v.org_id IN (
+          SELECT org_id FROM org_members WHERE user_id = auth.uid() AND role = 'admin'
+        )
+      )
+    )
+  );
+
+CREATE POLICY "maintenance_details_editor_manage" ON maintenance_details FOR INSERT, UPDATE, DELETE
+  USING (
+    document_id IN (
+      SELECT d.id FROM documents d
+      WHERE d.vehicle_id IN (
+        SELECT vehicle_id FROM vehicle_access WHERE user_id = auth.uid() AND role IN ('admin', 'editor')
+      )
+    )
+  );
 
 -- notifications: own only
 CREATE POLICY "notifications_own" ON notifications FOR SELECT

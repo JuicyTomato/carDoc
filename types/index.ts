@@ -1,6 +1,16 @@
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm'
 import * as schema from '@/db/schema'
 
+// Enum value types
+export type OrgMemberRole = (typeof schema.orgMemberRole.enumValues)[number]
+export type OrgPlan = (typeof schema.orgPlan.enumValues)[number]
+export type VehicleType = (typeof schema.vehicleType.enumValues)[number]
+export type VehicleAccessRole = (typeof schema.vehicleAccessRole.enumValues)[number]
+export type DocumentType = (typeof schema.documentType.enumValues)[number]
+export type FileSource = (typeof schema.fileSource.enumValues)[number]
+export type CoverageType = (typeof schema.coverageType.enumValues)[number]
+export type NotificationChannel = (typeof schema.notificationChannel.enumValues)[number]
+
 // Organizations
 export type Organization = InferSelectModel<typeof schema.organizations>
 export type NewOrganization = InferInsertModel<typeof schema.organizations>
