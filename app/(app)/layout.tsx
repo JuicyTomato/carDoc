@@ -13,9 +13,13 @@ const navLinks = [
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch {
+    // treat as unauthenticated
+  }
 
   if (!user) {
     redirect('/login')
@@ -48,7 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         {/* User info + logout */}
         <div className="border-t px-3 py-4 space-y-2">
-          <p className="truncate px-3 text-xs text-muted-foreground" title={user.email}>
+          <p className="truncate max-w-[160px] px-3 text-xs text-muted-foreground" title={user.email}>
             {user.email}
           </p>
           <LogoutButton />

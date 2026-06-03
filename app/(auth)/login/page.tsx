@@ -59,7 +59,7 @@ export default function LoginPage() {
     })
 
     if (authError) {
-      setError('Credenziali non valide. Controlla email e password.')
+      setError(authError.message)
       return
     }
 

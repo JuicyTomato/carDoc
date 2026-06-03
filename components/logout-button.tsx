@@ -10,8 +10,14 @@ export function LogoutButton() {
 
   async function handleLogout() {
     const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
+    const { error } = await supabase.auth.signOut()
+    if (!error) {
+      router.push('/login')
+    } else {
+      console.error('Logout failed:', error.message)
+      // Still redirect — session is likely invalid
+      router.push('/login')
+    }
   }
 
   return (
