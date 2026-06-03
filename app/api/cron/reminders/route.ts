@@ -1,1 +1,1 @@
-export async function GET(req: Request) { return Response.json({ ok: true }) }
+export async function GET() { return Response.json({ ok: true }) }

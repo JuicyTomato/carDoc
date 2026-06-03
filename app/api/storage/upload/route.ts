@@ -1,1 +1,1 @@
-export async function POST(req: Request) { return Response.json({ ok: true }) }
+export async function POST() { return Response.json({ ok: true }) }
