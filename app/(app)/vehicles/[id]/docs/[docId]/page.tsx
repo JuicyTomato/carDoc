@@ -10,11 +10,13 @@ import {
   getRevisionDetails,
   getMaintenanceDetails,
 } from '@/lib/actions/documents'
+import { getVehicle } from '@/lib/actions/vehicles'
 import { getDocumentFiles } from '@/lib/actions/files'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteDocumentButton } from '@/components/delete-document-button'
+import { ExportPdfButton } from '@/components/export-pdf-button'
 import { parseLocale, formatDate } from '@/lib/utils/format'
 import type { DocumentType, InsuranceDetails, RevisionDetails, MaintenanceDetails } from '@/types'
 
@@ -201,12 +203,13 @@ export default async function DocumentDetailPage({
   const doc = await getDocument(params.docId, user.id).catch(() => null)
   if (!doc) notFound()
 
-  const [files, insuranceDetailsData, revisionDetailsData, maintenanceDetailsData] =
+  const [files, insuranceDetailsData, revisionDetailsData, maintenanceDetailsData, vehicle] =
     await Promise.all([
       getDocumentFiles(params.docId, user.id).catch(() => []),
       doc.type === 'insurance' ? getInsuranceDetails(params.docId, user.id).catch(() => null) : null,
       doc.type === 'revision' ? getRevisionDetails(params.docId, user.id).catch(() => null) : null,
       doc.type === 'maintenance' ? getMaintenanceDetails(params.docId, user.id).catch(() => null) : null,
+      getVehicle(params.id, user.id).catch(() => null),
     ])
 
   // Generate signed URLs for uploaded files
@@ -328,13 +331,53 @@ export default async function DocumentDetailPage({
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-3 pt-2 flex-wrap">
         <Button asChild variant="outline" size="sm">
           <Link href={`/vehicles/${params.id}/docs/${params.docId}/edit`}>
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Modifica
           </Link>
         </Button>
+        <ExportPdfButton
+          docData={{
+            title: doc.title,
+            type: doc.type,
+            typeLabel: documentTypeLabel(doc.type),
+            expiryDate: doc.expiryDate ?? null,
+            notes: doc.notes ?? null,
+            vehicleName: vehicle ? `${vehicle.make} ${vehicle.model}` : 'Veicolo',
+            insurance: insuranceDetailsData
+              ? {
+                  provider: insuranceDetailsData.provider,
+                  policyNumber: insuranceDetailsData.policyNumber,
+                  coverageType: insuranceDetailsData.coverageType,
+                  premium: insuranceDetailsData.premium,
+                  startDate: insuranceDetailsData.startDate,
+                  endDate: insuranceDetailsData.endDate,
+                }
+              : null,
+            revision: revisionDetailsData
+              ? {
+                  mileageAtRevision: revisionDetailsData.mileageAtRevision,
+                  station: revisionDetailsData.station,
+                  passed: revisionDetailsData.passed,
+                  nextDueDate: revisionDetailsData.nextDueDate,
+                  nextDueMileage: revisionDetailsData.nextDueMileage,
+                }
+              : null,
+            maintenance: maintenanceDetailsData
+              ? {
+                  mileage: maintenanceDetailsData.mileage,
+                  cost: maintenanceDetailsData.cost,
+                  workshop: maintenanceDetailsData.workshop,
+                  serviceType: maintenanceDetailsData.serviceType,
+                  nextDueDate: maintenanceDetailsData.nextDueDate,
+                  nextDueMileage: maintenanceDetailsData.nextDueMileage,
+                  itemsReplaced: maintenanceDetailsData.itemsReplaced,
+                }
+              : null,
+          }}
+        />
         <DeleteDocumentButton
           documentId={doc.id}
           vehicleId={params.id}
