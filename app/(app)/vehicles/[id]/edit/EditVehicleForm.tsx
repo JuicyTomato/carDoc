@@ -25,9 +25,15 @@ const vehicleTypeOptions: VehicleTypeOption[] = [
   { value: 'other', label: 'Altro' },
 ]
 
+type OrgMember = {
+  userId: string
+  email: string | null
+}
+
 type Props = {
   vehicleId: string
   userId: string
+  orgMembers: OrgMember[]
   defaultValues: {
     type: VehicleType
     make: string
@@ -37,10 +43,11 @@ type Props = {
     vin?: string
     color?: string
     notes?: string
+    responsibleUserId?: string
   }
 }
 
-export default function EditVehicleForm({ vehicleId, userId, defaultValues }: Props) {
+export default function EditVehicleForm({ vehicleId, userId, orgMembers, defaultValues }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,6 +60,9 @@ export default function EditVehicleForm({ vehicleId, userId, defaultValues }: Pr
   const [vin, setVin] = useState(defaultValues.vin ?? '')
   const [color, setColor] = useState(defaultValues.color ?? '')
   const [notes, setNotes] = useState(defaultValues.notes ?? '')
+  const [responsibleUserId, setResponsibleUserId] = useState(
+    defaultValues.responsibleUserId ?? 'none',
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -71,6 +81,7 @@ export default function EditVehicleForm({ vehicleId, userId, defaultValues }: Pr
           vin: vin || undefined,
           color: color || undefined,
           notes: notes || undefined,
+          responsibleUserId: responsibleUserId === 'none' ? null : responsibleUserId,
         },
         userId,
       )
@@ -200,6 +211,27 @@ export default function EditVehicleForm({ vehicleId, userId, defaultValues }: Pr
                 rows={3}
                 className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
               />
+            </div>
+
+            {/* Responsabile scadenze */}
+            <div className="space-y-2">
+              <Label htmlFor="responsible">Responsabile scadenze</Label>
+              <Select value={responsibleUserId} onValueChange={setResponsibleUserId}>
+                <SelectTrigger id="responsible">
+                  <SelectValue placeholder="Seleziona responsabile" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nessun responsabile</SelectItem>
+                  {orgMembers.map((member) => (
+                    <SelectItem key={member.userId} value={member.userId}>
+                      {member.email ?? member.userId}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Se impostato, le notifiche di scadenza verranno inviate solo al responsabile.
+              </p>
             </div>
 
             <div className="flex gap-3 pt-2">

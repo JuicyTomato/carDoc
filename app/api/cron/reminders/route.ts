@@ -100,13 +100,14 @@ export async function GET(request: NextRequest) {
 
     const vehicleIds = Array.from(new Set(expiringDocs.map((d) => d.vehicleId)))
 
-    // Get vehicle info for display
+    // Get vehicle info for display (including responsibleUserId)
     const vehicleRows = await db
       .select({
         id: vehicles.id,
         make: vehicles.make,
         model: vehicles.model,
         year: vehicles.year,
+        responsibleUserId: vehicles.responsibleUserId,
       })
       .from(vehicles)
       .where(inArray(vehicles.id, vehicleIds))
@@ -132,8 +133,13 @@ export async function GET(request: NextRequest) {
 
     // 4. For each doc × user combination
     for (const doc of expiringDocs) {
-      const userIds = vehicleUserMap.get(doc.vehicleId) ?? []
       const vehicle = vehicleMap.get(doc.vehicleId)
+
+      // If the vehicle has a responsibleUserId, notify only that user
+      // Otherwise, notify all users with vehicleAccess
+      const userIds = vehicle?.responsibleUserId
+        ? [vehicle.responsibleUserId]
+        : (vehicleUserMap.get(doc.vehicleId) ?? [])
 
       for (const userId of userIds) {
         const prefs = prefsMap.get(userId)

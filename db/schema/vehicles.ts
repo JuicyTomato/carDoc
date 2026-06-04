@@ -28,6 +28,7 @@ export const vehicles = pgTable(
     vin: text('vin'),
     color: text('color'),
     notes: text('notes'),
+    responsibleUserId: uuid('responsible_user_id'),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },

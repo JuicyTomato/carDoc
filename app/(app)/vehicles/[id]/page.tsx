@@ -5,6 +5,7 @@ import { Plus, Car, Bike, Truck, HelpCircle, Archive, FileX, Pencil } from 'luci
 
 import { createClient } from '@/lib/supabase/server'
 import { getVehicle } from '@/lib/actions/vehicles'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getDocuments, getArchivedDocuments } from '@/lib/actions/documents'
 import { getVehicleAccessList } from '@/lib/actions/access'
 import { Badge } from '@/components/ui/badge'
@@ -144,6 +145,16 @@ export default async function VehicleDetailPage({
 
   const locale = parseLocale(headers().get('accept-language'))
 
+  let responsibleEmail: string | null = null
+  if (vehicle.responsibleUserId) {
+    try {
+      const { data: { user: resp } } = await supabaseAdmin.auth.admin.getUserById(vehicle.responsibleUserId)
+      responsibleEmail = resp?.email ?? null
+    } catch {
+      // ignore
+    }
+  }
+
   const [docs, archivedDocs, accessList] = await Promise.all([
     getDocuments(params.id, user.id).catch(() => []),
     getArchivedDocuments(params.id, user.id).catch(() => []),
@@ -216,7 +227,7 @@ export default async function VehicleDetailPage({
       </div>
 
       {/* Vehicle info card */}
-      {(vehicle.color || vehicle.vin || vehicle.notes) && (
+      {(vehicle.color || vehicle.vin || vehicle.notes || responsibleEmail) && (
         <Card>
           <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             {vehicle.color && (
@@ -229,6 +240,12 @@ export default async function VehicleDetailPage({
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">VIN</p>
                 <p className="font-mono text-xs font-medium break-all">{vehicle.vin}</p>
+              </div>
+            )}
+            {responsibleEmail && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Responsabile</p>
+                <p className="font-medium">{responsibleEmail}</p>
               </div>
             )}
             {vehicle.notes && (

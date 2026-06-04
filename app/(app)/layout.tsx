@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, Car, Settings, BarChart3, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, Car, Calendar, Settings, BarChart3, AlertTriangle } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from '@/components/logout-button'
@@ -9,6 +9,7 @@ import { NotificationBell } from '@/components/notification-bell'
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/vehicles', label: 'Veicoli', icon: Car },
+  { href: '/calendar', label: 'Calendario', icon: Calendar },
   { href: '/expiring', label: 'Scadenze', icon: AlertTriangle },
   { href: '/stats', label: 'Statistiche', icon: BarChart3 },
   { href: '/settings', label: 'Impostazioni', icon: Settings },

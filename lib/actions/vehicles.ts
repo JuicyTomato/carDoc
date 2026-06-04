@@ -5,6 +5,7 @@ import { organizations, orgMembers, vehicles, vehicleAccess } from '@/db/schema'
 import { eq, and, isNull, inArray, or } from 'drizzle-orm'
 import type { Vehicle, VehicleType } from '@/types'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ export type CreateVehicleInput = {
   vin?: string
   color?: string
   notes?: string
+  responsibleUserId?: string | null
 }
 
 // ─── Org helpers ─────────────────────────────────────────────────────────────
@@ -182,8 +184,31 @@ export async function updateVehicle(
       ...(data.vin !== undefined && { vin: data.vin }),
       ...(data.color !== undefined && { color: data.color }),
       ...(data.notes !== undefined && { notes: data.notes }),
+      ...(data.responsibleUserId !== undefined && { responsibleUserId: data.responsibleUserId }),
     })
     .where(eq(vehicles.id, vehicleId))
+}
+
+export async function getVehicleWithResponsible(
+  vehicleId: string,
+  userId: string,
+): Promise<{ vehicle: Vehicle; responsibleEmail: string | null }> {
+  const vehicle = await getVehicle(vehicleId, userId)
+  if (!vehicle) {
+    throw new Error('Vehicle not found')
+  }
+
+  let responsibleEmail: string | null = null
+  if (vehicle.responsibleUserId) {
+    try {
+      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(vehicle.responsibleUserId)
+      responsibleEmail = user?.email ?? null
+    } catch {
+      // ignore
+    }
+  }
+
+  return { vehicle, responsibleEmail }
 }
 
 export async function archiveVehicle(
