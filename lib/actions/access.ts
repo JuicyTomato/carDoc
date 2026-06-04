@@ -166,8 +166,6 @@ export async function getVehicleAccessList(
     throw new Error('Accesso negato')
   }
 
-  const callerRole = (access[0].role ?? 'viewer') as VehicleAccessRole
-  const isAdmin = callerRole === 'admin'
 
   const rows = await db
     .select({
@@ -177,18 +175,14 @@ export async function getVehicleAccessList(
     .from(vehicleAccess)
     .where(eq(vehicleAccess.vehicleId, vehicleId))
 
-  // Only admins can see other members' emails
-  if (!isAdmin) {
-    return rows.map((r) => ({
-      userId: r.userId,
-      role: (r.role ?? 'viewer') as VehicleAccessRole,
-      email: r.userId === userId ? null : null,
-    }))
-  }
-
+  const memberIds = rows.map((r) => r.userId)
   const { data: listData } = await supabaseAdmin.auth.admin.listUsers()
   const allUsers = listData?.users ?? []
-  const userMap = new Map(allUsers.map((u) => [u.id, u.email ?? null]))
+  const userMap = new Map(
+    allUsers
+      .filter((u) => memberIds.includes(u.id))
+      .map((u) => [u.id, u.email ?? null]),
+  )
 
   return rows.map((r) => ({
     userId: r.userId,
