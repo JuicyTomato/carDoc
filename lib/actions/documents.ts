@@ -4,11 +4,12 @@ import { db } from '@/db'
 import {
   documents,
   vehicleAccess,
+  vehicles,
   insuranceDetails,
   revisionDetails,
   maintenanceDetails,
 } from '@/db/schema'
-import { eq, and, lte, gte, inArray } from 'drizzle-orm'
+import { eq, and, lte, gte, inArray, or, isNull } from 'drizzle-orm'
 import type {
   Document,
   DocumentType,
@@ -285,6 +286,72 @@ export async function getExpiringDocuments(
       ),
     )
     .orderBy(documents.expiryDate)
+}
+
+export type ExpiringDocumentWithVehicle = {
+  id: string
+  vehicleId: string
+  title: string
+  type: DocumentType
+  expiryDate: string | null
+  notes: string | null
+  vehicle: { id: string; make: string; model: string; plate: string | null }
+}
+
+export async function getExpiringDocumentsWithVehicle(
+  userId: string,
+  daysAhead: number,
+): Promise<ExpiringDocumentWithVehicle[]> {
+  const accessRows = await db
+    .select({ vehicleId: vehicleAccess.vehicleId })
+    .from(vehicleAccess)
+    .where(eq(vehicleAccess.userId, userId))
+
+  if (accessRows.length === 0) return []
+
+  const vehicleIds = accessRows.map((r) => r.vehicleId)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const future = new Date(today)
+  future.setDate(future.getDate() + daysAhead)
+
+  const todayStr = today.toISOString().slice(0, 10)
+  const futureStr = future.toISOString().slice(0, 10)
+
+  const rows = await db
+    .select({
+      id: documents.id,
+      vehicleId: documents.vehicleId,
+      title: documents.title,
+      type: documents.type,
+      expiryDate: documents.expiryDate,
+      notes: documents.notes,
+      vehicleMake: vehicles.make,
+      vehicleModel: vehicles.model,
+      vehiclePlate: vehicles.plate,
+    })
+    .from(documents)
+    .innerJoin(vehicles, eq(documents.vehicleId, vehicles.id))
+    .where(
+      and(
+        inArray(documents.vehicleId, vehicleIds),
+        eq(documents.isActive, true),
+        or(isNull(documents.expiryDate), gte(documents.expiryDate, todayStr)),
+        lte(documents.expiryDate, futureStr),
+      ),
+    )
+    .orderBy(documents.expiryDate)
+
+  return rows.map((r) => ({
+    id: r.id,
+    vehicleId: r.vehicleId,
+    title: r.title,
+    type: r.type as DocumentType,
+    expiryDate: r.expiryDate ?? null,
+    notes: r.notes ?? null,
+    vehicle: { id: r.vehicleId, make: r.vehicleMake, model: r.vehicleModel, plate: r.vehiclePlate ?? null },
+  }))
 }
 
 // ─── Type-specific detail queries ─────────────────────────────────────────────
