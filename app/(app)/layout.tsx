@@ -28,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
+      {/* Sidebar — md+ screens */}
       <aside className="hidden md:flex w-64 flex-col border-r bg-card">
         {/* Logo */}
         <div className="flex h-16 items-center border-b px-6">
@@ -63,15 +63,30 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Mobile top bar */}
-      <div className="md:hidden flex h-14 w-full items-center border-b bg-card px-4 fixed top-0 z-10">
-        <span className="text-lg font-bold">carDoc</span>
+      {/* Mobile top bar — small screens */}
+      <div className="md:hidden flex h-14 w-full items-center justify-between border-b bg-card px-4 fixed top-0 z-10">
+        <Link href="/dashboard" className="text-lg font-bold">carDoc</Link>
+        <NotificationBell userId={user.id} />
       </div>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto md:p-8 p-4 mt-14 md:mt-0">
+      <main className="flex-1 overflow-y-auto md:p-8 p-4 mt-14 md:mt-0 mb-16 md:mb-0">
         {children}
       </main>
+
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-10 flex items-center justify-around border-t bg-card h-16">
+        {navLinks.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Icon className="h-5 w-5" />
+            <span className="text-[10px] font-medium">{label}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
   )
 }

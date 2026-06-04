@@ -83,6 +83,7 @@ export async function markNotificationRead(
 export async function createInAppNotification(
   userId: string,
   documentId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _message: string,
 ): Promise<void> {
   await db.insert(notifications).values({

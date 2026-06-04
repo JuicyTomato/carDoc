@@ -13,6 +13,9 @@ import type {
   Document,
   DocumentType,
   CoverageType,
+  InsuranceDetails,
+  RevisionDetails,
+  MaintenanceDetails,
 } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -97,14 +100,37 @@ async function assertDocumentAccess(
 export async function getDocuments(
   vehicleId: string,
   userId: string,
+  activeOnly = true,
 ): Promise<Document[]> {
   await assertVehicleAccess(vehicleId, userId)
 
   return db
     .select()
     .from(documents)
-    .where(eq(documents.vehicleId, vehicleId))
+    .where(
+      activeOnly
+        ? and(eq(documents.vehicleId, vehicleId), eq(documents.isActive, true))
+        : eq(documents.vehicleId, vehicleId),
+    )
     .orderBy(documents.createdAt)
+}
+
+export async function getArchivedDocuments(
+  vehicleId: string,
+  userId: string,
+): Promise<Document[]> {
+  await assertVehicleAccess(vehicleId, userId)
+
+  return db
+    .select()
+    .from(documents)
+    .where(
+      and(
+        eq(documents.vehicleId, vehicleId),
+        eq(documents.isActive, false),
+      ),
+    )
+    .orderBy(documents.expiryDate)
 }
 
 export async function getDocument(
@@ -127,6 +153,20 @@ export async function createDocument(
   userId: string,
 ): Promise<{ id: string }> {
   await assertVehicleAccess(data.vehicleId, userId)
+
+  // Auto-archive the previous active document of the same type for this vehicle
+  if (['insurance', 'revision', 'maintenance'].includes(data.type)) {
+    await db
+      .update(documents)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(documents.vehicleId, data.vehicleId),
+          eq(documents.type, data.type),
+          eq(documents.isActive, true),
+        ),
+      )
+  }
 
   const [doc] = await db
     .insert(documents)
@@ -245,4 +285,39 @@ export async function getExpiringDocuments(
       ),
     )
     .orderBy(documents.expiryDate)
+}
+
+// ─── Type-specific detail queries ─────────────────────────────────────────────
+
+export async function getInsuranceDetails(
+  documentId: string,
+): Promise<InsuranceDetails | null> {
+  const rows = await db
+    .select()
+    .from(insuranceDetails)
+    .where(eq(insuranceDetails.documentId, documentId))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+export async function getRevisionDetails(
+  documentId: string,
+): Promise<RevisionDetails | null> {
+  const rows = await db
+    .select()
+    .from(revisionDetails)
+    .where(eq(revisionDetails.documentId, documentId))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+export async function getMaintenanceDetails(
+  documentId: string,
+): Promise<MaintenanceDetails | null> {
+  const rows = await db
+    .select()
+    .from(maintenanceDetails)
+    .where(eq(maintenanceDetails.documentId, documentId))
+    .limit(1)
+  return rows[0] ?? null
 }
