@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import VehicleAccessSection from '@/components/settings/VehicleAccessSection'
 import { RestoreDocumentButton } from '@/components/restore-document-button'
+import { ArchiveVehicleButton } from '@/components/archive-vehicle-button'
 import { parseLocale, formatDate } from '@/lib/utils/format'
 import type { Document, DocumentType } from '@/types'
 
@@ -189,12 +190,19 @@ export default async function VehicleDetailPage({
           </div>
         </div>
         {isVehicleAdmin && (
-          <Button asChild variant="outline" size="sm" className="shrink-0">
-            <Link href={`/vehicles/${vehicle.id}/edit`}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Modifica
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/vehicles/${vehicle.id}/edit`}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Modifica
+              </Link>
+            </Button>
+            <ArchiveVehicleButton
+              vehicleId={vehicle.id}
+              userId={user.id}
+              vehicleName={`${vehicle.make} ${vehicle.model}`}
+            />
+          </div>
         )}
       </div>
 
