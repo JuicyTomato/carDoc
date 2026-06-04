@@ -54,7 +54,7 @@ function getMondayOffset(date: Date): number {
   return day === 0 ? 6 : day - 1
 }
 
-export default function CalendarView({ docs, locale: _locale }: Props) {
+export default function CalendarView({ docs }: Props) {
   const router = useRouter()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
