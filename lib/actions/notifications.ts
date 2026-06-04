@@ -64,6 +64,36 @@ export async function getUserNotifications(
     .limit(limit)
 }
 
+export async function getAllNotifications(
+  userId: string,
+  limit = 50,
+): Promise<
+  Array<{
+    id: string
+    documentId: string | null
+    type: string | null
+    channel: string | null
+    sentAt: Date | null
+    readAt: Date | null
+  }>
+> {
+  const rows = await db
+    .select({
+      id: notifications.id,
+      documentId: notifications.documentId,
+      type: notifications.type,
+      channel: notifications.channel,
+      sentAt: notifications.sentAt,
+      readAt: notifications.readAt,
+    })
+    .from(notifications)
+    .where(eq(notifications.userId, userId))
+    .orderBy(desc(notifications.sentAt))
+    .limit(limit)
+
+  return rows
+}
+
 export async function markNotificationRead(
   notificationId: string,
   userId: string,

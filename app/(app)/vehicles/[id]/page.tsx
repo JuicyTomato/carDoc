@@ -153,7 +153,16 @@ export default async function VehicleDetailPage({
   const myAccess = accessList.find((e) => e.userId === user.id)
   const isVehicleAdmin = myAccess?.role === 'admin'
 
-  const docsByType = (type: DocumentType) => docs.filter((d) => d.type === type)
+  function sortByUrgency(docList: Document[]): Document[] {
+    return [...docList].sort((a, b) => {
+      if (!a.expiryDate && !b.expiryDate) return 0
+      if (!a.expiryDate) return 1
+      if (!b.expiryDate) return -1
+      return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
+    })
+  }
+
+  const docsByType = (type: DocumentType) => sortByUrgency(docs.filter((d) => d.type === type))
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import {
   DropdownMenu,
@@ -128,6 +129,11 @@ export function NotificationBell({ userId }: NotificationBellProps) {
             </DropdownMenuItem>
           ))
         )}
+        <div className="border-t pt-2 mt-1">
+          <Link href="/notifications" className="text-xs text-muted-foreground hover:text-foreground w-full text-center block">
+            Vedi tutte le notifiche →
+          </Link>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )

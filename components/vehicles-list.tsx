@@ -70,6 +70,7 @@ function VehicleRow({ vehicle }: { vehicle: Vehicle }) {
 }
 
 type TypeFilter = 'all' | VehicleType
+type SortOrder = 'az' | 'za'
 
 interface VehiclesListProps {
   vehicles: Vehicle[]
@@ -78,10 +79,11 @@ interface VehiclesListProps {
 export function VehiclesList({ vehicles }: VehiclesListProps) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('az')
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return vehicles.filter((v) => {
+    const result = vehicles.filter((v) => {
       if (typeFilter !== 'all' && v.type !== typeFilter) return false
       if (!query) return true
       return (
@@ -91,7 +93,14 @@ export function VehiclesList({ vehicles }: VehiclesListProps) {
         (v.vin?.toLowerCase().includes(query) ?? false)
       )
     })
-  }, [vehicles, search, typeFilter])
+    result.sort((a, b) => {
+      const nameA = `${a.make} ${a.model}`.toLowerCase()
+      const nameB = `${b.make} ${b.model}`.toLowerCase()
+      const cmp = nameA.localeCompare(nameB)
+      return sortOrder === 'az' ? cmp : -cmp
+    })
+    return result
+  }, [vehicles, search, typeFilter, sortOrder])
 
   return (
     <div className="space-y-4">
@@ -116,6 +125,18 @@ export function VehiclesList({ vehicles }: VehiclesListProps) {
             <SelectItem value="moto">Moto</SelectItem>
             <SelectItem value="truck">Camion</SelectItem>
             <SelectItem value="other">Altro</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={sortOrder}
+          onValueChange={(v) => setSortOrder(v as SortOrder)}
+        >
+          <SelectTrigger className="w-28">
+            <SelectValue placeholder="Ordine" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="az">A–Z</SelectItem>
+            <SelectItem value="za">Z–A</SelectItem>
           </SelectContent>
         </Select>
       </div>
