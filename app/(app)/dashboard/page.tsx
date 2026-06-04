@@ -1,16 +1,18 @@
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import { Plus, Car, Bike, Truck, HelpCircle, AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getVehicles } from '@/lib/actions/vehicles'
 import { getExpiringDocuments } from '@/lib/actions/documents'
+import { parseLocale, formatDate } from '@/lib/utils/format'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import type { Vehicle, Document } from '@/types'
 
-function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
+function ExpiryBadge({ expiryDate, locale }: { expiryDate: string | null; locale: string }) {
   if (!expiryDate) return null
 
   const today = new Date()
@@ -31,7 +33,7 @@ function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
   }
   return (
     <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-      {expiry.toLocaleDateString('it-IT')}
+      {formatDate(expiry, locale)}
     </Badge>
   )
 }
@@ -61,9 +63,11 @@ function vehicleTypeLabel(type: string): string {
 function VehicleCard({
   vehicle,
   expiringDocs,
+  locale,
 }: {
   vehicle: Vehicle
   expiringDocs: Document[]
+  locale: string
 }) {
   const vehicleDocs = expiringDocs.filter((d) => d.vehicleId === vehicle.id)
 
@@ -99,7 +103,7 @@ function VehicleCard({
                 {vehicleDocs.slice(0, 3).map((doc) => (
                   <span key={doc.id} className="text-xs text-muted-foreground flex items-center gap-1">
                     <span className="hidden sm:inline">{doc.title}:</span>
-                    <ExpiryBadge expiryDate={doc.expiryDate} />
+                    <ExpiryBadge expiryDate={doc.expiryDate} locale={locale} />
                   </span>
                 ))}
                 {vehicleDocs.length > 3 && (
@@ -115,6 +119,7 @@ function VehicleCard({
 }
 
 export default async function DashboardPage() {
+  const locale = parseLocale(headers().get('accept-language'))
   const supabase = createClient()
   const {
     data: { user },
@@ -208,7 +213,7 @@ export default async function DashboardPage() {
                   <span>{d.title}</span>
                   {d.expiryDate && (
                     <span className="font-medium">
-                      — {new Date(d.expiryDate).toLocaleDateString('it-IT')}
+                      — {formatDate(new Date(d.expiryDate), locale)}
                     </span>
                   )}
                 </li>
@@ -235,7 +240,7 @@ export default async function DashboardPage() {
                   <span>{d.title}</span>
                   {d.expiryDate && (
                     <span className="font-medium">
-                      — {new Date(d.expiryDate).toLocaleDateString('it-IT')}
+                      — {formatDate(new Date(d.expiryDate), locale)}
                     </span>
                   )}
                 </li>
@@ -262,7 +267,7 @@ export default async function DashboardPage() {
                   <span>{d.title}</span>
                   {d.expiryDate && (
                     <span className="font-medium">
-                      — {new Date(d.expiryDate).toLocaleDateString('it-IT')}
+                      — {formatDate(new Date(d.expiryDate), locale)}
                     </span>
                   )}
                 </li>
@@ -310,6 +315,7 @@ export default async function DashboardPage() {
               key={vehicle.id}
               vehicle={vehicle}
               expiringDocs={expiringIn30}
+              locale={locale}
             />
           ))}
         </div>

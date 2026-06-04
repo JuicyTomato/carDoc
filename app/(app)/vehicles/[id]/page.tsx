@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import { Plus, Car, Bike, Truck, HelpCircle, Archive, FileX } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
@@ -12,11 +13,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import VehicleAccessSection from '@/components/settings/VehicleAccessSection'
 import { RestoreDocumentButton } from '@/components/restore-document-button'
+import { parseLocale, formatDate } from '@/lib/utils/format'
 import type { Document, DocumentType } from '@/types'
 
 // ─── Expiry badge ──────────────────────────────────────────────────────────────
 
-function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
+function ExpiryBadge({ expiryDate, locale }: { expiryDate: string | null; locale: string }) {
   if (!expiryDate) return null
 
   const today = new Date()
@@ -39,14 +41,14 @@ function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
   }
   return (
     <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-      {expiry.toLocaleDateString('it-IT')}
+      {formatDate(expiry, locale)}
     </Badge>
   )
 }
 
 // ─── Document card ─────────────────────────────────────────────────────────────
 
-function DocumentCard({ doc, vehicleId }: { doc: Document; vehicleId: string }) {
+function DocumentCard({ doc, vehicleId, locale }: { doc: Document; vehicleId: string; locale: string }) {
   return (
     <Link href={`/vehicles/${vehicleId}/docs/${doc.id}`}>
       <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
@@ -60,7 +62,7 @@ function DocumentCard({ doc, vehicleId }: { doc: Document; vehicleId: string }) 
             </div>
             <div className="shrink-0">
               {doc.expiryDate ? (
-                <ExpiryBadge expiryDate={doc.expiryDate} />
+                <ExpiryBadge expiryDate={doc.expiryDate} locale={locale} />
               ) : (
                 <Badge variant="secondary">Nessuna scadenza</Badge>
               )}
@@ -138,6 +140,8 @@ export default async function VehicleDetailPage({
 
   const vehicle = await getVehicle(params.id, user.id).catch(() => null)
   if (!vehicle) notFound()
+
+  const locale = parseLocale(headers().get('accept-language'))
 
   const [docs, archivedDocs, accessList] = await Promise.all([
     getDocuments(params.id, user.id).catch(() => []),
@@ -246,7 +250,7 @@ export default async function VehicleDetailPage({
             <TabsContent key={tab.type} value={tab.type} className="space-y-3 mt-4">
               {tabDocs.length > 0 ? (
                 tabDocs.map((doc) => (
-                  <DocumentCard key={doc.id} doc={doc} vehicleId={vehicle.id} />
+                  <DocumentCard key={doc.id} doc={doc} vehicleId={vehicle.id} locale={locale} />
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center py-10 text-center border rounded-lg border-dashed">
@@ -299,7 +303,7 @@ export default async function VehicleDetailPage({
                   </div>
                   {doc.expiryDate && (
                     <p className="text-xs text-muted-foreground">
-                      Scadenza: {new Date(doc.expiryDate).toLocaleDateString('it-IT')}
+                      Scadenza: {formatDate(new Date(doc.expiryDate), locale)}
                     </p>
                   )}
                 </div>

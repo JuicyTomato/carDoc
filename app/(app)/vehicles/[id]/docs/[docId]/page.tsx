@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import { ExternalLink, Download, FileText, Pencil } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
@@ -14,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteDocumentButton } from '@/components/delete-document-button'
+import { parseLocale, formatDate } from '@/lib/utils/format'
 import type { DocumentType, InsuranceDetails, RevisionDetails, MaintenanceDetails } from '@/types'
 
 function documentTypeLabel(type: DocumentType): string {
@@ -38,7 +40,7 @@ function coverageTypeLabel(type: string | null | undefined): string {
   }
 }
 
-function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
+function ExpiryBadge({ expiryDate, locale }: { expiryDate: string | null; locale: string }) {
   if (!expiryDate) return <Badge variant="secondary">Nessuna scadenza</Badge>
 
   const today = new Date()
@@ -47,25 +49,25 @@ function ExpiryBadge({ expiryDate }: { expiryDate: string | null }) {
   const diffDays = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
   if (diffDays < 0) {
-    return <Badge variant="destructive">Scaduto il {expiry.toLocaleDateString('it-IT')}</Badge>
+    return <Badge variant="destructive">Scaduto il {formatDate(expiry, locale)}</Badge>
   }
   if (diffDays < 14) {
     return (
       <Badge variant="destructive">
-        Scade il {expiry.toLocaleDateString('it-IT')} ({diffDays}g)
+        Scade il {formatDate(expiry, locale)} ({diffDays}g)
       </Badge>
     )
   }
   if (diffDays < 30) {
     return (
       <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-        Scade il {expiry.toLocaleDateString('it-IT')}
+        Scade il {formatDate(expiry, locale)}
       </Badge>
     )
   }
   return (
     <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-      Scade il {expiry.toLocaleDateString('it-IT')}
+      Scade il {formatDate(expiry, locale)}
     </Badge>
   )
 }
@@ -80,7 +82,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   )
 }
 
-function InsuranceSection({ details }: { details: InsuranceDetails }) {
+function InsuranceSection({ details, locale }: { details: InsuranceDetails; locale: string }) {
   return (
     <Card>
       <CardHeader>
@@ -96,18 +98,18 @@ function InsuranceSection({ details }: { details: InsuranceDetails }) {
         />
         <DetailRow
           label="Data inizio"
-          value={details.startDate ? new Date(details.startDate).toLocaleDateString('it-IT') : null}
+          value={details.startDate ? formatDate(new Date(details.startDate), locale) : null}
         />
         <DetailRow
           label="Data fine"
-          value={details.endDate ? new Date(details.endDate).toLocaleDateString('it-IT') : null}
+          value={details.endDate ? formatDate(new Date(details.endDate), locale) : null}
         />
       </CardContent>
     </Card>
   )
 }
 
-function RevisionSection({ details }: { details: RevisionDetails }) {
+function RevisionSection({ details, locale }: { details: RevisionDetails; locale: string }) {
   return (
     <Card>
       <CardHeader>
@@ -131,7 +133,7 @@ function RevisionSection({ details }: { details: RevisionDetails }) {
         />
         <DetailRow
           label="Prossima scadenza"
-          value={details.nextDueDate ? new Date(details.nextDueDate).toLocaleDateString('it-IT') : null}
+          value={details.nextDueDate ? formatDate(new Date(details.nextDueDate), locale) : null}
         />
         <DetailRow
           label="Prossima scadenza (km)"
@@ -142,7 +144,7 @@ function RevisionSection({ details }: { details: RevisionDetails }) {
   )
 }
 
-function MaintenanceSection({ details }: { details: MaintenanceDetails }) {
+function MaintenanceSection({ details, locale }: { details: MaintenanceDetails; locale: string }) {
   return (
     <Card>
       <CardHeader>
@@ -161,7 +163,7 @@ function MaintenanceSection({ details }: { details: MaintenanceDetails }) {
         <DetailRow label="Tipo intervento" value={details.serviceType} />
         <DetailRow
           label="Prossima scadenza"
-          value={details.nextDueDate ? new Date(details.nextDueDate).toLocaleDateString('it-IT') : null}
+          value={details.nextDueDate ? formatDate(new Date(details.nextDueDate), locale) : null}
         />
         <DetailRow
           label="Prossima scadenza (km)"
@@ -193,6 +195,8 @@ export default async function DocumentDetailPage({
   } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
+
+  const locale = parseLocale(headers().get('accept-language'))
 
   const doc = await getDocument(params.docId, user.id).catch(() => null)
   if (!doc) notFound()
@@ -235,7 +239,7 @@ export default async function DocumentDetailPage({
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{doc.title}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{documentTypeLabel(doc.type)}</Badge>
-            <ExpiryBadge expiryDate={doc.expiryDate} />
+            <ExpiryBadge expiryDate={doc.expiryDate} locale={locale} />
             {!doc.isActive && <Badge variant="secondary">Archiviato</Badge>}
           </div>
         </div>
@@ -256,25 +260,25 @@ export default async function DocumentDetailPage({
           {doc.expiryDate && (
             <DetailRow
               label="Scadenza"
-              value={new Date(doc.expiryDate).toLocaleDateString('it-IT')}
+              value={formatDate(new Date(doc.expiryDate), locale)}
             />
           )}
           <DetailRow
             label="Aggiunto il"
-            value={doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('it-IT') : '-'}
+            value={doc.createdAt ? formatDate(new Date(doc.createdAt), locale) : '-'}
           />
         </CardContent>
       </Card>
 
       {/* Type-specific details */}
       {doc.type === 'insurance' && insuranceDetailsData && (
-        <InsuranceSection details={insuranceDetailsData} />
+        <InsuranceSection details={insuranceDetailsData} locale={locale} />
       )}
       {doc.type === 'revision' && revisionDetailsData && (
-        <RevisionSection details={revisionDetailsData} />
+        <RevisionSection details={revisionDetailsData} locale={locale} />
       )}
       {doc.type === 'maintenance' && maintenanceDetailsData && (
-        <MaintenanceSection details={maintenanceDetailsData} />
+        <MaintenanceSection details={maintenanceDetailsData} locale={locale} />
       )}
 
       {/* Files */}
