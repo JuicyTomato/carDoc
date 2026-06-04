@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getVehicle, updateVehicle } from '@/lib/actions/vehicles'
+import { getVehicle } from '@/lib/actions/vehicles'
 import EditVehicleForm from './EditVehicleForm'
 
 export default async function EditVehiclePage({
