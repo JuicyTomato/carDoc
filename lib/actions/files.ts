@@ -52,7 +52,9 @@ async function assertDocumentAccess(
 
 export async function getDocumentFiles(
   documentId: string,
+  userId: string,
 ): Promise<DocumentFile[]> {
+  await assertDocumentAccess(documentId, userId)
   return db
     .select()
     .from(documentFiles)
@@ -65,6 +67,10 @@ export async function addExternalLink(
   url: string,
   filename: string,
 ): Promise<void> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Non autenticato')
+  await assertDocumentAccess(documentId, user.id)
   await db.insert(documentFiles).values({
     documentId,
     source: 'external',
@@ -122,6 +128,18 @@ export async function confirmUpload(
   mimeType: string,
   sizeBytes: number,
 ): Promise<void> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Non autenticato')
+
+  const rows = await db
+    .select({ documentId: documentFiles.documentId })
+    .from(documentFiles)
+    .where(eq(documentFiles.id, fileId))
+    .limit(1)
+  if (rows.length === 0) throw new Error('File not found')
+  await assertDocumentAccess(rows[0].documentId, user.id)
+
   await db
     .update(documentFiles)
     .set({ storagePath, filename, mimeType, sizeBytes })
@@ -134,6 +152,11 @@ export async function createUploadFileRecord(
   filename: string,
   mimeType: string,
 ): Promise<{ id: string }> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Non autenticato')
+  await assertDocumentAccess(documentId, user.id)
+
   const [file] = await db
     .insert(documentFiles)
     .values({

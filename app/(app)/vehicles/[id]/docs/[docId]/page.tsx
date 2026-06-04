@@ -203,10 +203,10 @@ export default async function DocumentDetailPage({
 
   const [files, insuranceDetailsData, revisionDetailsData, maintenanceDetailsData] =
     await Promise.all([
-      getDocumentFiles(params.docId).catch(() => []),
-      doc.type === 'insurance' ? getInsuranceDetails(params.docId).catch(() => null) : null,
-      doc.type === 'revision' ? getRevisionDetails(params.docId).catch(() => null) : null,
-      doc.type === 'maintenance' ? getMaintenanceDetails(params.docId).catch(() => null) : null,
+      getDocumentFiles(params.docId, user.id).catch(() => []),
+      doc.type === 'insurance' ? getInsuranceDetails(params.docId, user.id).catch(() => null) : null,
+      doc.type === 'revision' ? getRevisionDetails(params.docId, user.id).catch(() => null) : null,
+      doc.type === 'maintenance' ? getMaintenanceDetails(params.docId, user.id).catch(() => null) : null,
     ])
 
   // Generate signed URLs for uploaded files

@@ -291,7 +291,9 @@ export async function getExpiringDocuments(
 
 export async function getInsuranceDetails(
   documentId: string,
+  userId: string,
 ): Promise<InsuranceDetails | null> {
+  await assertDocumentAccess(documentId, userId)
   const rows = await db
     .select()
     .from(insuranceDetails)
@@ -302,7 +304,9 @@ export async function getInsuranceDetails(
 
 export async function getRevisionDetails(
   documentId: string,
+  userId: string,
 ): Promise<RevisionDetails | null> {
+  await assertDocumentAccess(documentId, userId)
   const rows = await db
     .select()
     .from(revisionDetails)
@@ -313,7 +317,9 @@ export async function getRevisionDetails(
 
 export async function getMaintenanceDetails(
   documentId: string,
+  userId: string,
 ): Promise<MaintenanceDetails | null> {
+  await assertDocumentAccess(documentId, userId)
   const rows = await db
     .select()
     .from(maintenanceDetails)

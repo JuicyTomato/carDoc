@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { Resend } from 'resend'
 import { render } from '@react-email/components'
 import { db } from '@/db'
@@ -40,9 +41,13 @@ function getTodayBounds(): { start: Date; end: Date } {
 }
 
 export async function GET(request: NextRequest) {
-  // 1. Verify cron secret
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // 1. Verify cron secret (timing-safe to prevent timing attacks)
+  const authHeader = request.headers.get('authorization') ?? ''
+  const expected = `Bearer ${process.env.CRON_SECRET ?? ''}`
+  const valid =
+    authHeader.length === expected.length &&
+    timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected))
+  if (!valid) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
