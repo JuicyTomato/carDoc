@@ -329,9 +329,11 @@ export default async function DocumentDetailPage({
 
       {/* Actions */}
       <div className="flex items-center gap-3 pt-2">
-        <Button variant="outline" size="sm" disabled>
-          <Pencil className="mr-1.5 h-3.5 w-3.5" />
-          Modifica
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/vehicles/${params.id}/docs/${params.docId}/edit`}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Modifica
+          </Link>
         </Button>
         <DeleteDocumentButton
           documentId={doc.id}

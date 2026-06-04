@@ -327,3 +327,119 @@ export async function getMaintenanceDetails(
     .limit(1)
   return rows[0] ?? null
 }
+
+// ─── Upsert type-specific details ─────────────────────────────────────────────
+
+export async function upsertInsuranceDetails(
+  documentId: string,
+  userId: string,
+  data: {
+    provider?: string
+    policyNumber?: string
+    coverageType?: string
+    premium?: number
+    startDate?: string
+    endDate?: string
+  },
+): Promise<void> {
+  await assertDocumentAccess(documentId, userId)
+
+  await db
+    .insert(insuranceDetails)
+    .values({
+      documentId,
+      provider: data.provider,
+      policyNumber: data.policyNumber,
+      coverageType: data.coverageType as 'RC' | 'kasko' | 'full' | undefined,
+      premium: data.premium?.toString(),
+      startDate: data.startDate,
+      endDate: data.endDate,
+    })
+    .onConflictDoUpdate({
+      target: insuranceDetails.documentId,
+      set: {
+        provider: data.provider,
+        policyNumber: data.policyNumber,
+        coverageType: data.coverageType as 'RC' | 'kasko' | 'full' | undefined,
+        premium: data.premium?.toString(),
+        startDate: data.startDate,
+        endDate: data.endDate,
+      },
+    })
+}
+
+export async function upsertRevisionDetails(
+  documentId: string,
+  userId: string,
+  data: {
+    mileageAtRevision?: number
+    station?: string
+    passed?: boolean
+    nextDueDate?: string
+    nextDueMileage?: number
+  },
+): Promise<void> {
+  await assertDocumentAccess(documentId, userId)
+
+  await db
+    .insert(revisionDetails)
+    .values({
+      documentId,
+      mileageAtRevision: data.mileageAtRevision,
+      station: data.station,
+      passed: data.passed,
+      nextDueDate: data.nextDueDate,
+      nextDueMileage: data.nextDueMileage,
+    })
+    .onConflictDoUpdate({
+      target: revisionDetails.documentId,
+      set: {
+        mileageAtRevision: data.mileageAtRevision,
+        station: data.station,
+        passed: data.passed,
+        nextDueDate: data.nextDueDate,
+        nextDueMileage: data.nextDueMileage,
+      },
+    })
+}
+
+export async function upsertMaintenanceDetails(
+  documentId: string,
+  userId: string,
+  data: {
+    mileage?: number
+    cost?: number
+    workshop?: string
+    serviceType?: string
+    nextDueDate?: string
+    nextDueMileage?: number
+    itemsReplaced?: string[]
+  },
+): Promise<void> {
+  await assertDocumentAccess(documentId, userId)
+
+  await db
+    .insert(maintenanceDetails)
+    .values({
+      documentId,
+      mileage: data.mileage,
+      cost: data.cost?.toString(),
+      workshop: data.workshop,
+      serviceType: data.serviceType,
+      nextDueDate: data.nextDueDate,
+      nextDueMileage: data.nextDueMileage,
+      itemsReplaced: data.itemsReplaced,
+    })
+    .onConflictDoUpdate({
+      target: maintenanceDetails.documentId,
+      set: {
+        mileage: data.mileage,
+        cost: data.cost?.toString(),
+        workshop: data.workshop,
+        serviceType: data.serviceType,
+        nextDueDate: data.nextDueDate,
+        nextDueMileage: data.nextDueMileage,
+        itemsReplaced: data.itemsReplaced,
+      },
+    })
+}

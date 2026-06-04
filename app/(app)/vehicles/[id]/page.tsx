@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { headers } from 'next/headers'
-import { Plus, Car, Bike, Truck, HelpCircle, Archive, FileX } from 'lucide-react'
+import { Plus, Car, Bike, Truck, HelpCircle, Archive, FileX, Pencil } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getVehicle } from '@/lib/actions/vehicles'
@@ -188,6 +188,14 @@ export default async function VehicleDetailPage({
             </div>
           </div>
         </div>
+        {isVehicleAdmin && (
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Link href={`/vehicles/${vehicle.id}/edit`}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Modifica
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Vehicle info card */}
