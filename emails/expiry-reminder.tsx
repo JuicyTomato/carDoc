@@ -9,36 +9,43 @@ import {
   Hr,
   Preview,
   Section,
+  Row,
+  Column,
 } from '@react-email/components'
 
-interface ExpiryReminderProps {
-  userName: string
-  vehicleName: string // e.g. "Ducati Monster 2021"
-  documentType: string // e.g. "Assicurazione"
+export interface ExpiryItem {
+  vehicleName: string
+  documentType: string
   documentTitle: string
-  expiryDate: string // formatted date string
+  expiryDate: string
   daysUntilExpiry: number
   appUrl: string
 }
 
-export default function ExpiryReminder({
-  userName,
-  vehicleName,
-  documentType,
-  documentTitle,
-  expiryDate,
-  daysUntilExpiry,
-  appUrl,
-}: ExpiryReminderProps) {
-  const urgencyColor =
-    daysUntilExpiry <= 1
-      ? '#dc2626' // red-600
-      : daysUntilExpiry <= 7
-        ? '#d97706' // amber-600
-        : '#2563eb' // blue-600
+interface ExpiryReminderProps {
+  userName: string
+  items: ExpiryItem[]
+  settingsUrl: string
+}
 
-  const giorni = daysUntilExpiry === 1 ? 'giorno' : 'giorni'
-  const previewText = `Scadenza ${documentType} - ${vehicleName}: ${daysUntilExpiry} ${giorni} rimanenti`
+function urgencyColor(days: number): string {
+  if (days <= 1) return '#dc2626'
+  if (days <= 7) return '#d97706'
+  return '#2563eb'
+}
+
+function urgencyLabel(days: number): string {
+  if (days === 0) return 'Oggi'
+  if (days === 1) return '1 giorno'
+  return `${days} giorni`
+}
+
+export default function ExpiryReminder({ userName, items, settingsUrl }: ExpiryReminderProps) {
+  const count = items.length
+  const previewText =
+    count === 1
+      ? `Scadenza ${items[0].documentType} — ${items[0].vehicleName}: ${urgencyLabel(items[0].daysUntilExpiry)}`
+      : `${count} documenti in scadenza — carDoc`
 
   return (
     <Html lang="it">
@@ -51,51 +58,49 @@ export default function ExpiryReminder({
             <Heading style={logoStyle}>carDoc</Heading>
           </Section>
 
-          {/* Main content */}
+          {/* Intro */}
           <Section style={contentStyle}>
-            <Heading as="h1" style={titleStyle}>
-              Scadenza {documentType} - {vehicleName}
-            </Heading>
-
             <Text style={textStyle}>Ciao {userName},</Text>
-
             <Text style={textStyle}>
-              il documento <strong>{documentTitle}</strong> per il veicolo{' '}
-              <strong>{vehicleName}</strong> scade il{' '}
-              <strong style={{ color: urgencyColor }}>{expiryDate}</strong>.
+              {count === 1
+                ? 'hai un documento in scadenza che richiede la tua attenzione:'
+                : `hai ${count} documenti in scadenza che richiedono la tua attenzione:`}
             </Text>
-
-            {/* Urgency badge */}
-            <Section style={badgeContainerStyle}>
-              <Text style={{ ...badgeStyle, backgroundColor: urgencyColor }}>
-                {String(daysUntilExpiry)} {giorni} rimanenti
-              </Text>
-            </Section>
-
-            <Text style={textStyle}>
-              Ti consigliamo di rinnovare il documento prima della scadenza per
-              evitare interruzioni nella copertura del tuo veicolo.
-            </Text>
-
-            {/* CTA */}
-            <Section style={ctaContainerStyle}>
-              <Button href={appUrl} style={buttonStyle}>
-                Visualizza documento
-              </Button>
-            </Section>
           </Section>
+
+          {/* Document list */}
+          {items.map((item, i) => {
+            const color = urgencyColor(item.daysUntilExpiry)
+            return (
+              <Section key={i} style={itemContainerStyle}>
+                <Row>
+                  <Column style={itemLeftStyle}>
+                    <Text style={itemVehicleStyle}>{item.vehicleName}</Text>
+                    <Text style={itemTitleStyle}>
+                      {item.documentType} — {item.documentTitle}
+                    </Text>
+                    <Text style={{ ...itemDateStyle, color }}>
+                      Scade il {item.expiryDate} ({urgencyLabel(item.daysUntilExpiry)})
+                    </Text>
+                  </Column>
+                  <Column style={itemRightStyle}>
+                    <Button href={item.appUrl} style={{ ...itemButtonStyle, backgroundColor: color }}>
+                      Apri
+                    </Button>
+                  </Column>
+                </Row>
+              </Section>
+            )
+          })}
 
           <Hr style={hrStyle} />
 
           {/* Footer */}
           <Section style={footerStyle}>
             <Text style={footerTextStyle}>
-              Hai ricevuto questa email perché hai attivato le notifiche di
-              scadenza su carDoc. Puoi modificare le tue preferenze nelle{' '}
-              <a href={`${appUrl}/settings`} style={linkStyle}>
-                impostazioni
-              </a>
-              .
+              Hai ricevuto questa email perché hai attivato le notifiche di scadenza su carDoc.
+              Puoi modificare le preferenze nelle{' '}
+              <a href={settingsUrl} style={linkStyle}>impostazioni</a>.
             </Text>
             <Text style={footerTextStyle}>
               © {new Date().getFullYear()} carDoc — Gestione documenti veicoli
@@ -107,16 +112,14 @@ export default function ExpiryReminder({
   )
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const bodyStyle: React.CSSProperties = {
   backgroundColor: '#f9fafb',
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   margin: 0,
   padding: 0,
 }
-
 const containerStyle: React.CSSProperties = {
   maxWidth: '580px',
   margin: '40px auto',
@@ -125,12 +128,10 @@ const containerStyle: React.CSSProperties = {
   overflow: 'hidden',
   boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
 }
-
 const headerStyle: React.CSSProperties = {
   backgroundColor: '#111827',
   padding: '24px 32px',
 }
-
 const logoStyle: React.CSSProperties = {
   color: '#ffffff',
   fontSize: '24px',
@@ -138,72 +139,69 @@ const logoStyle: React.CSSProperties = {
   margin: 0,
   letterSpacing: '-0.5px',
 }
-
 const contentStyle: React.CSSProperties = {
-  padding: '32px 32px 24px',
+  padding: '24px 32px 8px',
 }
-
-const titleStyle: React.CSSProperties = {
-  fontSize: '20px',
-  fontWeight: 600,
-  color: '#111827',
-  marginTop: 0,
-  marginBottom: '16px',
-}
-
 const textStyle: React.CSSProperties = {
   fontSize: '15px',
   lineHeight: '24px',
   color: '#374151',
-  margin: '0 0 16px',
+  margin: '0 0 12px',
 }
-
-const badgeContainerStyle: React.CSSProperties = {
-  margin: '16px 0',
+const itemContainerStyle: React.CSSProperties = {
+  margin: '0 24px 4px',
+  padding: '14px 16px',
+  backgroundColor: '#f9fafb',
+  borderRadius: '6px',
+  border: '1px solid #e5e7eb',
 }
-
-const badgeStyle: React.CSSProperties = {
-  display: 'inline-block',
-  color: '#ffffff',
+const itemLeftStyle: React.CSSProperties = {
+  verticalAlign: 'middle',
+}
+const itemRightStyle: React.CSSProperties = {
+  verticalAlign: 'middle',
+  textAlign: 'right',
+  width: '60px',
+}
+const itemVehicleStyle: React.CSSProperties = {
+  fontSize: '12px',
+  color: '#6b7280',
+  margin: '0 0 2px',
+  fontWeight: 500,
+}
+const itemTitleStyle: React.CSSProperties = {
   fontSize: '14px',
   fontWeight: 600,
-  padding: '6px 14px',
-  borderRadius: '20px',
+  color: '#111827',
+  margin: '0 0 4px',
+}
+const itemDateStyle: React.CSSProperties = {
+  fontSize: '13px',
+  fontWeight: 600,
   margin: 0,
 }
-
-const ctaContainerStyle: React.CSSProperties = {
-  margin: '24px 0 8px',
-  textAlign: 'center',
-}
-
-const buttonStyle: React.CSSProperties = {
-  backgroundColor: '#2563eb',
+const itemButtonStyle: React.CSSProperties = {
   color: '#ffffff',
-  fontSize: '15px',
+  fontSize: '12px',
   fontWeight: 600,
   textDecoration: 'none',
-  borderRadius: '6px',
-  padding: '12px 28px',
+  borderRadius: '4px',
+  padding: '6px 12px',
   display: 'inline-block',
 }
-
 const hrStyle: React.CSSProperties = {
   borderColor: '#e5e7eb',
-  margin: '0 32px',
+  margin: '20px 32px 0',
 }
-
 const footerStyle: React.CSSProperties = {
   padding: '16px 32px 24px',
 }
-
 const footerTextStyle: React.CSSProperties = {
   fontSize: '12px',
   lineHeight: '18px',
   color: '#9ca3af',
   margin: '0 0 8px',
 }
-
 const linkStyle: React.CSSProperties = {
   color: '#6b7280',
 }

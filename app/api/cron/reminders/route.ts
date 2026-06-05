@@ -6,7 +6,7 @@ import { db } from '@/db'
 import { documents, vehicles, vehicleAccess, notificationPrefs, notifications } from '@/db/schema'
 import { eq, and, gte, lt, isNull, inArray } from 'drizzle-orm'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import ExpiryReminder from '@/emails/expiry-reminder'
+import ExpiryReminder, { type ExpiryItem } from '@/emails/expiry-reminder'
 
 const DAYS_BEFORE_VALUES = [30, 7, 1] as const
 
@@ -24,14 +24,12 @@ function formatDateIT(dateStr: string): string {
   return `${day}/${month}/${year}`
 }
 
-// Returns "YYYY-MM-DD" for today + daysAhead (UTC)
 function getTargetDateStr(daysAhead: number): string {
   const d = new Date()
   d.setUTCDate(d.getUTCDate() + daysAhead)
   return d.toISOString().slice(0, 10)
 }
 
-// Returns "YYYY-MM-DD 00:00:00+00" bounds for "today" in UTC
 function getTodayBounds(): { start: Date; end: Date } {
   const start = new Date()
   start.setUTCHours(0, 0, 0, 0)
@@ -40,8 +38,17 @@ function getTodayBounds(): { start: Date; end: Date } {
   return { start, end }
 }
 
+type DocEntry = {
+  id: string
+  vehicleId: string
+  type: string
+  title: string
+  expiryDate: string | null
+  daysAhead: number
+  vehicleName: string
+}
+
 export async function GET(request: NextRequest) {
-  // 1. Verify cron secret (timing-safe to prevent timing attacks)
   const authHeader = request.headers.get('authorization') ?? ''
   const expected = `Bearer ${process.env.CRON_SECRET ?? ''}`
   const valid =
@@ -52,34 +59,26 @@ export async function GET(request: NextRequest) {
   }
 
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
-  if (!resend) {
-    console.warn('[cron/reminders] RESEND_API_KEY not set — email sending disabled')
-  }
+  if (!resend) console.warn('[cron/reminders] RESEND_API_KEY not set — email disabled')
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://cardoc.app'
   const { start: todayStart, end: todayEnd } = getTodayBounds()
 
-  let totalSent = 0
-  let totalSkipped = 0
-
-  // 2. Load global notification prefs (per user, where vehicleId IS NULL)
-  const allPrefs = await db
-    .select()
-    .from(notificationPrefs)
-    .where(isNull(notificationPrefs.vehicleId))
-
+  // Load all prefs
+  const allPrefs = await db.select().from(notificationPrefs).where(isNull(notificationPrefs.vehicleId))
   if (allPrefs.length === 0) {
     return NextResponse.json({ sent: 0, skipped: 0, reason: 'no prefs configured' })
   }
-
-  // Build a map userId → prefs for quick lookup
   const prefsMap = new Map(allPrefs.map((p) => [p.userId, p]))
 
-  // 3. For each configured daysAhead value, find docs expiring on that exact day
+  // ── Step 1: collect all expiring docs across all daysAhead values ──────────
+
+  // userId → DocEntry[]  (all docs this user should be notified about)
+  const userDocMap = new Map<string, DocEntry[]>()
+
   for (const daysAhead of DAYS_BEFORE_VALUES) {
     const targetDateStr = getTargetDateStr(daysAhead)
 
-    // Documents expiring on exactly targetDate (date column = string YYYY-MM-DD)
     const expiringDocs = await db
       .select({
         id: documents.id,
@@ -89,41 +88,22 @@ export async function GET(request: NextRequest) {
         expiryDate: documents.expiryDate,
       })
       .from(documents)
-      .where(
-        and(
-          eq(documents.expiryDate, targetDateStr),
-          eq(documents.isActive, true),
-        ),
-      )
+      .where(and(eq(documents.expiryDate, targetDateStr), eq(documents.isActive, true)))
 
     if (expiringDocs.length === 0) continue
 
     const vehicleIds = Array.from(new Set(expiringDocs.map((d) => d.vehicleId)))
 
-    // Get vehicle info for display (including responsibleUserId)
     const vehicleRows = await db
-      .select({
-        id: vehicles.id,
-        make: vehicles.make,
-        model: vehicles.model,
-        year: vehicles.year,
-        responsibleUserId: vehicles.responsibleUserId,
-      })
+      .select({ id: vehicles.id, make: vehicles.make, model: vehicles.model, year: vehicles.year, responsibleUserId: vehicles.responsibleUserId })
       .from(vehicles)
       .where(inArray(vehicles.id, vehicleIds))
-
     const vehicleMap = new Map(vehicleRows.map((v) => [v.id, v]))
 
-    // Get all users who have access to these vehicles
     const accessRows = await db
-      .select({
-        vehicleId: vehicleAccess.vehicleId,
-        userId: vehicleAccess.userId,
-      })
+      .select({ vehicleId: vehicleAccess.vehicleId, userId: vehicleAccess.userId })
       .from(vehicleAccess)
       .where(inArray(vehicleAccess.vehicleId, vehicleIds))
-
-    // Group accesses by vehicleId for quick lookup
     const vehicleUserMap = new Map<string, string[]>()
     for (const row of accessRows) {
       const existing = vehicleUserMap.get(row.vehicleId) ?? []
@@ -131,154 +111,151 @@ export async function GET(request: NextRequest) {
       vehicleUserMap.set(row.vehicleId, existing)
     }
 
-    // 4. For each doc × user combination
     for (const doc of expiringDocs) {
       const vehicle = vehicleMap.get(doc.vehicleId)
-
-      // If the vehicle has a responsibleUserId, notify only that user
-      // Otherwise, notify all users with vehicleAccess
       const userIds = vehicle?.responsibleUserId
         ? [vehicle.responsibleUserId]
         : (vehicleUserMap.get(doc.vehicleId) ?? [])
 
+      const vehicleName = vehicle
+        ? `${vehicle.make} ${vehicle.model}${vehicle.year ? ` ${vehicle.year}` : ''}`
+        : 'Veicolo'
+
+      const entry: DocEntry = {
+        id: doc.id,
+        vehicleId: doc.vehicleId,
+        type: doc.type,
+        title: doc.title,
+        expiryDate: doc.expiryDate,
+        daysAhead,
+        vehicleName,
+      }
+
       for (const userId of userIds) {
         const prefs = prefsMap.get(userId)
-
-        // Check user has prefs and wants this daysAhead value
-        if (!prefs) {
-          totalSkipped++
-          continue
-        }
+        if (!prefs) continue
         const userDaysBefore = prefs.daysBefore ?? [30, 7, 1]
-        if (!userDaysBefore.includes(daysAhead)) {
-          totalSkipped++
-          continue
-        }
+        if (!userDaysBefore.includes(daysAhead)) continue
 
-        // ── Email notification ────────────────────────────────────────────────
-        if (prefs.emailEnabled && resend) {
-          // Dedup: already emailed today?
-          const existingEmail = await db
-            .select({ id: notifications.id })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.documentId, doc.id),
-                eq(notifications.userId, userId),
-                eq(notifications.channel, 'email'),
-                gte(notifications.sentAt, todayStart),
-                lt(notifications.sentAt, todayEnd),
-              ),
-            )
-            .limit(1)
+        const existing = userDocMap.get(userId) ?? []
+        existing.push(entry)
+        userDocMap.set(userId, existing)
+      }
+    }
+  }
 
-          if (existingEmail.length > 0) {
-            totalSkipped++
-          } else {
-            // Get user email from Supabase auth
-            let userEmail: string | undefined
-            let userName: string | undefined
-            try {
-              const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId)
-              if (!error && data.user) {
-                userEmail = data.user.email
-                userName =
-                  data.user.user_metadata?.full_name ??
-                  data.user.user_metadata?.name ??
-                  data.user.email?.split('@')[0] ??
-                  'Utente'
-              }
-            } catch (err) {
-              console.error(`[cron/reminders] Failed to fetch user ${userId}:`, err)
-            }
+  // ── Step 2: for each user send ONE digest email + in-app per doc ──────────
 
-            if (userEmail) {
-              try {
-                const vehicleName = vehicle
-                  ? `${vehicle.make} ${vehicle.model}${vehicle.year ? ` ${vehicle.year}` : ''}`
-                  : 'Veicolo'
+  let totalSent = 0
+  let totalSkipped = 0
 
-                const documentTypeLabel =
-                  DOCUMENT_TYPE_LABELS[doc.type] ?? DOCUMENT_TYPE_LABELS.other
-                const expiryDateFormatted = doc.expiryDate
-                  ? formatDateIT(doc.expiryDate)
-                  : 'data sconosciuta'
+  for (const [userId, allDocs] of Array.from(userDocMap.entries())) {
+    const prefs = prefsMap.get(userId)!
 
-                const html = await render(
-                  ExpiryReminder({
-                    userName: userName ?? 'Utente',
-                    vehicleName,
-                    documentType: documentTypeLabel,
-                    documentTitle: doc.title,
-                    expiryDate: expiryDateFormatted,
-                    daysUntilExpiry: daysAhead,
-                    appUrl: `${appUrl}/vehicles/${doc.vehicleId}/docs/${doc.id}`,
-                  }),
-                )
+    // ── Email digest ─────────────────────────────────────────────────────────
+    if (prefs.emailEnabled && resend) {
+      // Filter out docs already emailed today
+      const notYetEmailed: DocEntry[] = []
+      for (const doc of allDocs) {
+        const existing = await db
+          .select({ id: notifications.id })
+          .from(notifications)
+          .where(and(
+            eq(notifications.documentId, doc.id),
+            eq(notifications.userId, userId),
+            eq(notifications.channel, 'email'),
+            gte(notifications.sentAt, todayStart),
+            lt(notifications.sentAt, todayEnd),
+          ))
+          .limit(1)
+        if (existing.length === 0) notYetEmailed.push(doc)
+        else totalSkipped++
+      }
 
-                await resend.emails.send({
-                  from: 'carDoc <onboarding@resend.dev>',
-                  to: userEmail,
-                  subject: `Scadenza ${documentTypeLabel} - ${vehicleName}`,
-                  html,
-                })
-
-                await db.insert(notifications).values({
-                  userId,
-                  documentId: doc.id,
-                  type: 'expiry_warning',
-                  channel: 'email',
-                })
-
-                totalSent++
-              } catch (err) {
-                console.error(
-                  `[cron/reminders] Failed to send email for doc ${doc.id} user ${userId}:`,
-                  err,
-                )
-                totalSkipped++
-              }
-            } else {
-              totalSkipped++
-            }
+      if (notYetEmailed.length > 0) {
+        let userEmail: string | undefined
+        let userName: string | undefined
+        try {
+          const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId)
+          if (!error && data.user) {
+            userEmail = data.user.email
+            userName = data.user.user_metadata?.full_name ?? data.user.user_metadata?.name ?? data.user.email?.split('@')[0] ?? 'Utente'
           }
+        } catch (err) {
+          console.error(`[cron/reminders] Failed to fetch user ${userId}:`, err)
         }
 
-        // ── In-app notification ───────────────────────────────────────────────
-        if (prefs.inAppEnabled) {
-          // Dedup: already created in-app notification today?
-          const existingInApp = await db
-            .select({ id: notifications.id })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.documentId, doc.id),
-                eq(notifications.userId, userId),
-                eq(notifications.channel, 'in_app'),
-                gte(notifications.sentAt, todayStart),
-                lt(notifications.sentAt, todayEnd),
-              ),
-            )
-            .limit(1)
+        if (userEmail) {
+          try {
+            const items: ExpiryItem[] = notYetEmailed.map((doc) => ({
+              vehicleName: doc.vehicleName,
+              documentType: DOCUMENT_TYPE_LABELS[doc.type] ?? DOCUMENT_TYPE_LABELS.other,
+              documentTitle: doc.title,
+              expiryDate: doc.expiryDate ? formatDateIT(doc.expiryDate) : 'data sconosciuta',
+              daysUntilExpiry: doc.daysAhead,
+              appUrl: `${appUrl}/vehicles/${doc.vehicleId}/docs/${doc.id}`,
+            }))
 
-          if (existingInApp.length > 0) {
-            totalSkipped++
-          } else {
-            try {
+            const subject = items.length === 1
+              ? `Scadenza ${items[0].documentType} — ${items[0].vehicleName}`
+              : `carDoc — ${items.length} scadenze nei prossimi giorni`
+
+            const html = await render(
+              ExpiryReminder({ userName: userName ?? 'Utente', items, settingsUrl: `${appUrl}/settings` })
+            )
+
+            await resend.emails.send({
+              from: 'carDoc <onboarding@resend.dev>',
+              to: userEmail,
+              subject,
+              html,
+            })
+
+            // Insert notification record per doc
+            for (const doc of notYetEmailed) {
               await db.insert(notifications).values({
                 userId,
                 documentId: doc.id,
                 type: 'expiry_warning',
-                channel: 'in_app',
+                channel: 'email',
               })
-              totalSent++
-            } catch (err) {
-              console.error(
-                `[cron/reminders] Failed to insert in-app notification for doc ${doc.id} user ${userId}:`,
-                err,
-              )
-              totalSkipped++
             }
+
+            totalSent++
+          } catch (err) {
+            console.error(`[cron/reminders] Failed to send digest to user ${userId}:`, err)
+            totalSkipped++
+          }
+        } else {
+          totalSkipped += notYetEmailed.length
+        }
+      }
+    }
+
+    // ── In-app: still one notification per doc ────────────────────────────────
+    if (prefs.inAppEnabled) {
+      for (const doc of allDocs) {
+        const existing = await db
+          .select({ id: notifications.id })
+          .from(notifications)
+          .where(and(
+            eq(notifications.documentId, doc.id),
+            eq(notifications.userId, userId),
+            eq(notifications.channel, 'in_app'),
+            gte(notifications.sentAt, todayStart),
+            lt(notifications.sentAt, todayEnd),
+          ))
+          .limit(1)
+
+        if (existing.length > 0) {
+          totalSkipped++
+        } else {
+          try {
+            await db.insert(notifications).values({ userId, documentId: doc.id, type: 'expiry_warning', channel: 'in_app' })
+            totalSent++
+          } catch (err) {
+            console.error(`[cron/reminders] In-app failed for doc ${doc.id} user ${userId}:`, err)
+            totalSkipped++
           }
         }
       }
