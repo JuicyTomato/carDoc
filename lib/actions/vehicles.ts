@@ -2,7 +2,7 @@
 
 import { db } from '@/db'
 import { organizations, orgMembers, vehicles, vehicleAccess } from '@/db/schema'
-import { eq, and, isNull, inArray, or } from 'drizzle-orm'
+import { eq, and, isNull, isNotNull, inArray, or } from 'drizzle-orm'
 import type { Vehicle, VehicleType } from '@/types'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -221,4 +221,43 @@ export async function archiveVehicle(
     .update(vehicles)
     .set({ archivedAt: new Date() })
     .where(eq(vehicles.id, vehicleId))
+}
+
+export async function restoreVehicle(
+  vehicleId: string,
+  userId: string,
+): Promise<void> {
+  await assertVehicleAccess(vehicleId, userId)
+
+  await db
+    .update(vehicles)
+    .set({ archivedAt: null })
+    .where(eq(vehicles.id, vehicleId))
+}
+
+export async function getArchivedVehicles(userId: string): Promise<Vehicle[]> {
+  const accessRows = await db
+    .select({ vehicleId: vehicleAccess.vehicleId })
+    .from(vehicleAccess)
+    .where(eq(vehicleAccess.userId, userId))
+
+  const adminOrgRows = await db
+    .select({ orgId: orgMembers.orgId })
+    .from(orgMembers)
+    .where(and(eq(orgMembers.userId, userId), eq(orgMembers.role, 'admin')))
+
+  const vehicleIds = accessRows.map((r) => r.vehicleId)
+  const adminOrgIds = adminOrgRows.map((r) => r.orgId)
+
+  if (vehicleIds.length === 0 && adminOrgIds.length === 0) return []
+
+  const accessConditions = []
+  if (vehicleIds.length > 0) accessConditions.push(inArray(vehicles.id, vehicleIds))
+  if (adminOrgIds.length > 0) accessConditions.push(inArray(vehicles.orgId, adminOrgIds))
+
+  return db
+    .select()
+    .from(vehicles)
+    .where(and(isNotNull(vehicles.archivedAt), or(...accessConditions)!))
+    .orderBy(vehicles.archivedAt)
 }

@@ -11,11 +11,13 @@ import { getVehicleAccessList } from '@/lib/actions/access'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import VehicleAccessSection from '@/components/settings/VehicleAccessSection'
 import { RestoreDocumentButton } from '@/components/restore-document-button'
 import { ArchiveVehicleButton } from '@/components/archive-vehicle-button'
+import { RestoreVehicleButton } from '@/components/restore-vehicle-button'
 import { parseLocale, formatDate } from '@/lib/utils/format'
 import type { Document, DocumentType } from '@/types'
 
@@ -178,6 +180,20 @@ export default async function VehicleDetailPage({
 
   return (
     <div className="space-y-6">
+      {/* Archived banner */}
+      {vehicle.archivedAt && (
+        <Alert className="border-yellow-300 bg-yellow-50 text-yellow-900 [&>svg]:text-yellow-600">
+          <Archive className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between gap-3">
+            <span>
+              Veicolo archiviato il {formatDate(new Date(vehicle.archivedAt), locale)}.
+              I documenti sono visibili ma in sola lettura.
+            </span>
+            <RestoreVehicleButton vehicleId={vehicle.id} userId={user.id} />
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2 min-w-0">
