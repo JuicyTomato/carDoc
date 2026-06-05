@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { headers } from 'next/headers'
-import { Plus, Car, Bike, Truck, HelpCircle, Archive, FileX, Pencil } from 'lucide-react'
+import { Plus, Car, Bike, Truck, HelpCircle, Archive, FileX, Pencil, ChevronDown } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
 import { getVehicle } from '@/lib/actions/vehicles'
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import VehicleAccessSection from '@/components/settings/VehicleAccessSection'
 import { RestoreDocumentButton } from '@/components/restore-document-button'
 import { ArchiveVehicleButton } from '@/components/archive-vehicle-button'
@@ -258,17 +259,6 @@ export default async function VehicleDetailPage({
         </Card>
       )}
 
-      {/* Access management */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Gestisci accessi</h2>
-        <VehicleAccessSection
-          vehicleId={vehicle.id}
-          initialAccessList={accessList}
-          currentUserId={user.id}
-          isAdmin={isVehicleAdmin}
-        />
-      </div>
-
       {/* Documents tabs */}
       <Tabs defaultValue="insurance">
         <div className="overflow-x-auto">
@@ -357,6 +347,24 @@ export default async function VehicleDetailPage({
           </div>
         </div>
       )}
+      {/* Access management — collapsible, last section */}
+      <Collapsible>
+        <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm font-medium hover:bg-accent/50 transition-colors">
+          <div className="flex items-center gap-2">
+            <span>Gestisci accessi</span>
+            <Badge variant="secondary">{accessList.length}</Badge>
+          </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <VehicleAccessSection
+            vehicleId={vehicle.id}
+            initialAccessList={accessList}
+            currentUserId={user.id}
+            isAdmin={isVehicleAdmin}
+          />
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   )
 }

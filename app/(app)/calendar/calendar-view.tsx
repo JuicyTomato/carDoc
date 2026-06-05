@@ -30,10 +30,19 @@ function getUrgency(expiryDateStr: string): 'red' | 'yellow' | 'green' {
   return 'green'
 }
 
-function urgencyDotClass(urgency: 'red' | 'yellow' | 'green'): string {
-  if (urgency === 'red') return 'bg-red-500'
-  if (urgency === 'yellow') return 'bg-yellow-400'
-  return 'bg-green-500'
+const DOC_TYPE_SHORT: Record<string, string> = {
+  insurance: 'Ass.',
+  revision: 'Rev.',
+  maintenance: 'Tag.',
+  tax: 'Bollo',
+  registration: 'Lib.',
+  other: 'Altro',
+}
+
+function urgencyBarClass(urgency: 'red' | 'yellow' | 'green'): string {
+  if (urgency === 'red') return 'bg-red-100 text-red-800 hover:bg-red-200'
+  if (urgency === 'yellow') return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+  return 'bg-green-100 text-green-800 hover:bg-green-200'
 }
 
 function urgencyBadgeClass(urgency: 'red' | 'yellow' | 'green'): string {
@@ -165,7 +174,7 @@ export default function CalendarView({ docs }: Props) {
                 >
                   {dayNum}
                 </div>
-                <div className="flex flex-wrap gap-0.5">
+                <div className="flex flex-col gap-0.5 w-full">
                   {visibleDocs.map((doc) => {
                     const urgency = doc.expiryDate ? getUrgency(doc.expiryDate) : 'green'
                     return (
@@ -173,13 +182,15 @@ export default function CalendarView({ docs }: Props) {
                         key={doc.id}
                         onClick={(e) => handleDocClick(doc, e)}
                         title={`${doc.vehicle.make} ${doc.vehicle.model} — ${doc.title}`}
-                        className={`w-2 h-2 rounded-full ${urgencyDotClass(urgency)} hover:opacity-70 transition-opacity cursor-pointer`}
-                      />
+                        className={`w-full text-left text-[9px] font-medium px-1 py-0.5 rounded truncate leading-tight transition-colors cursor-pointer ${urgencyBarClass(urgency)}`}
+                      >
+                        {DOC_TYPE_SHORT[doc.type] ?? doc.type}
+                      </button>
                     )
                   })}
                   {extraCount > 0 && (
-                    <span className="text-[9px] text-muted-foreground leading-none self-end">
-                      +{extraCount}
+                    <span className="text-[9px] text-muted-foreground leading-none pl-0.5">
+                      +{extraCount} altri
                     </span>
                   )}
                 </div>
@@ -190,17 +201,17 @@ export default function CalendarView({ docs }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-800">Ass.</span>
           Urgente (≤7 giorni)
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block" />
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">Ass.</span>
           In scadenza (8–30 giorni)
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800">Ass.</span>
           OK (&gt;30 giorni)
         </div>
       </div>
