@@ -73,6 +73,7 @@ export default function RegisterPage() {
           nome: values.nome,
           cognome: values.cognome,
         },
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
       },
     })
 
