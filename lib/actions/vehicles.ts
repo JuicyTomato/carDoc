@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/db'
-import { organizations, orgMembers, vehicles, vehicleAccess } from '@/db/schema'
+import { organizations, orgMembers, vehicles, vehicleAccess, documents, documentFiles } from '@/db/schema'
 import { eq, and, isNull, isNotNull, inArray, or } from 'drizzle-orm'
 import type { Vehicle, VehicleType } from '@/types'
 import { createClient } from '@/lib/supabase/server'
@@ -233,6 +233,31 @@ export async function restoreVehicle(
     .update(vehicles)
     .set({ archivedAt: null })
     .where(eq(vehicles.id, vehicleId))
+}
+
+export async function deleteVehicle(vehicleId: string, userId: string): Promise<void> {
+  const accessRows = await db
+    .select({ role: vehicleAccess.role })
+    .from(vehicleAccess)
+    .where(and(eq(vehicleAccess.vehicleId, vehicleId), eq(vehicleAccess.userId, userId)))
+    .limit(1)
+
+  if (accessRows.length === 0 || accessRows[0].role !== 'admin') {
+    throw new Error('Access denied')
+  }
+
+  const fileRows = await db
+    .select({ storagePath: documentFiles.storagePath })
+    .from(documentFiles)
+    .innerJoin(documents, eq(documentFiles.documentId, documents.id))
+    .where(eq(documents.vehicleId, vehicleId))
+
+  const paths = fileRows.map((r) => r.storagePath).filter(Boolean) as string[]
+  if (paths.length > 0) {
+    await supabaseAdmin.storage.from('documents').remove(paths)
+  }
+
+  await db.delete(vehicles).where(eq(vehicles.id, vehicleId))
 }
 
 export async function getArchivedVehicles(userId: string): Promise<Vehicle[]> {

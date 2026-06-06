@@ -226,7 +226,7 @@ export default async function VehicleDetailPage({
             </div>
           </div>
         </div>
-        {isVehicleAdmin && (
+        {isVehicleAdmin && !vehicle.archivedAt && (
           <div className="flex items-center gap-2 shrink-0">
             <Button asChild variant="outline" size="sm">
               <Link href={`/vehicles/${vehicle.id}/edit`}>

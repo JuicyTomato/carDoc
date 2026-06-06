@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { VehiclesList } from '@/components/vehicles-list'
 import { RestoreVehicleButton } from '@/components/restore-vehicle-button'
+import { DeleteVehicleButton } from '@/components/delete-vehicle-button'
 import type { Vehicle } from '@/types'
 
 function VehicleTypeIcon({ type }: { type: string }) {
@@ -43,8 +44,13 @@ function ArchivedVehicleRow({ vehicle, userId }: { vehicle: Vehicle; userId: str
           </div>
         </div>
       </div>
-      <div className="shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         <RestoreVehicleButton vehicleId={vehicle.id} userId={userId} />
+        <DeleteVehicleButton
+          vehicleId={vehicle.id}
+          userId={userId}
+          vehicleName={`${vehicle.make} ${vehicle.model}`}
+        />
       </div>
     </div>
   )
