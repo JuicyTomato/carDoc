@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -34,6 +34,16 @@ const loginSchema = z.object({
 })
 
 type LoginValues = z.infer<typeof loginSchema>
+
+function TimeoutBanner() {
+  const searchParams = useSearchParams()
+  if (searchParams.get('timeout') !== '1') return null
+  return (
+    <Alert className="mb-4 border-amber-200 bg-amber-50 text-amber-800">
+      <AlertDescription>Sessione scaduta per inattività. Accedi di nuovo.</AlertDescription>
+    </Alert>
+  )
+}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -75,6 +85,9 @@ export default function LoginPage() {
         </CardHeader>
 
         <CardContent>
+          <Suspense>
+            <TimeoutBanner />
+          </Suspense>
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
