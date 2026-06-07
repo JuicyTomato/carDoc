@@ -1,6 +1,42 @@
 'use server'
 
+import { z } from 'zod'
 import { db } from '@/db'
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+
+const documentSchema = z.object({
+  vehicleId: z.string().uuid(),
+  type: z.enum(['insurance', 'revision', 'maintenance', 'tax', 'registration', 'other']),
+  title: z.string().min(1).max(200),
+  notes: z.string().max(2000).optional(),
+  expiryDate: isoDate,
+  isActive: z.boolean().optional(),
+  insurance: z.object({
+    provider: z.string().max(100).optional(),
+    policyNumber: z.string().max(100).optional(),
+    coverageType: z.enum(['RC', 'kasko', 'full']).optional(),
+    premium: z.number().min(0).max(1_000_000).optional(),
+    startDate: isoDate,
+    endDate: isoDate,
+  }).optional(),
+  revision: z.object({
+    mileageAtRevision: z.number().int().min(0).max(10_000_000).optional(),
+    station: z.string().max(200).optional(),
+    passed: z.boolean().optional(),
+    nextDueDate: isoDate,
+    nextDueMileage: z.number().int().min(0).max(10_000_000).optional(),
+  }).optional(),
+  maintenance: z.object({
+    mileage: z.number().int().min(0).max(10_000_000).optional(),
+    cost: z.number().min(0).max(1_000_000).optional(),
+    workshop: z.string().max(200).optional(),
+    serviceType: z.string().max(200).optional(),
+    nextDueDate: isoDate,
+    nextDueMileage: z.number().int().min(0).max(10_000_000).optional(),
+    itemsReplaced: z.array(z.string().max(200)).max(50).optional(),
+  }).optional(),
+})
 import {
   documents,
   vehicleAccess,
@@ -153,6 +189,7 @@ export async function createDocument(
   data: CreateDocumentInput,
   userId: string,
 ): Promise<{ id: string }> {
+  documentSchema.parse(data)
   await assertVehicleAccess(data.vehicleId, userId)
 
   // Auto-archive the previous active document of the same type for this vehicle
@@ -229,6 +266,7 @@ export async function updateDocument(
   data: Partial<CreateDocumentInput>,
   userId: string,
 ): Promise<void> {
+  documentSchema.partial().parse(data)
   await assertDocumentAccess(documentId, userId)
 
   await db

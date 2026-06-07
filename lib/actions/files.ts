@@ -5,7 +5,18 @@
  * Supabase Dashboard → Storage → New bucket → name: "documents" → Private (RLS on)
  */
 
+import { z } from 'zod'
 import { db } from '@/db'
+
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+])
+
+const urlSchema = z.string().url().max(2048)
 import { documentFiles, documents, vehicleAccess, vehicles } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { createClient } from '@/lib/supabase/server'
@@ -67,6 +78,8 @@ export async function addExternalLink(
   url: string,
   filename: string,
 ): Promise<void> {
+  urlSchema.parse(url)
+  if (!filename || filename.length > 255) throw new Error('Nome file non valido')
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Non autenticato')
@@ -108,6 +121,12 @@ export async function getUploadUrl(
   mimeType: string,
   userId: string,
 ): Promise<{ signedUrl: string; storagePath: string }> {
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    throw new Error('Tipo di file non consentito')
+  }
+  if (!filename || filename.length > 255) {
+    throw new Error('Nome file non valido')
+  }
   const { vehicleId, orgId } = await assertDocumentAccess(documentId, userId)
 
   const storagePath = `${orgId}/${vehicleId}/${documentId}/${filename}`
@@ -152,6 +171,8 @@ export async function createUploadFileRecord(
   filename: string,
   mimeType: string,
 ): Promise<{ id: string }> {
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) throw new Error('Tipo di file non consentito')
+  if (!filename || filename.length > 255) throw new Error('Nome file non valido')
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Non autenticato')

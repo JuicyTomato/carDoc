@@ -1,6 +1,11 @@
 'use server'
 
+import { z } from 'zod'
 import { db } from '@/db'
+
+const emailSchema = z.string().email().max(254)
+const orgRoleSchema = z.enum(['admin', 'member'])
+const vehicleRoleSchema = z.enum(['admin', 'editor', 'viewer'])
 import { orgMembers, vehicles, vehicleAccess } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -89,6 +94,8 @@ export async function inviteToOrg(
   invitedBy: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    emailSchema.parse(email)
+    orgRoleSchema.parse(role)
     const orgId = await assertOrgAdmin(invitedBy)
 
     const found = await findUserByEmail(email)
@@ -198,6 +205,8 @@ export async function grantVehicleAccess(
   grantedBy: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    emailSchema.parse(targetEmail)
+    vehicleRoleSchema.parse(role)
     await assertVehicleAdmin(vehicleId, grantedBy)
 
     const found = await findUserByEmail(targetEmail)

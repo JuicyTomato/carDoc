@@ -1,6 +1,19 @@
 'use server'
 
+import { z } from 'zod'
 import { db } from '@/db'
+
+const vehicleSchema = z.object({
+  type: z.enum(['car', 'moto', 'truck', 'other']),
+  make: z.string().min(1).max(100),
+  model: z.string().min(1).max(100),
+  year: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional(),
+  plate: z.string().max(20).optional(),
+  vin: z.string().max(17).optional(),
+  color: z.string().max(50).optional(),
+  notes: z.string().max(2000).optional(),
+  responsibleUserId: z.string().uuid().nullable().optional(),
+})
 import { organizations, orgMembers, vehicles, vehicleAccess, documents, documentFiles } from '@/db/schema'
 import { eq, and, isNull, isNotNull, inArray, or } from 'drizzle-orm'
 import type { Vehicle, VehicleType } from '@/types'
@@ -138,6 +151,7 @@ export async function createVehicle(
   data: CreateVehicleInput,
   userId: string,
 ): Promise<{ id: string }> {
+  vehicleSchema.parse(data)
   const orgId = await getOrCreateOrg(userId)
 
   const [vehicle] = await db
@@ -171,6 +185,7 @@ export async function updateVehicle(
   data: Partial<CreateVehicleInput>,
   userId: string,
 ): Promise<void> {
+  vehicleSchema.partial().parse(data)
   await assertVehicleAccess(vehicleId, userId)
 
   await db

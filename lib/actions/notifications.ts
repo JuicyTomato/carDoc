@@ -1,6 +1,13 @@
 'use server'
 
+import { z } from 'zod'
 import { db } from '@/db'
+
+const prefsSchema = z.object({
+  daysBefore: z.array(z.number().int().min(1).max(365)).max(10),
+  emailEnabled: z.boolean(),
+  inAppEnabled: z.boolean(),
+})
 import { notificationPrefs, notifications } from '@/db/schema'
 import { eq, and, isNull, isNotNull, desc } from 'drizzle-orm'
 import type { Notification, NotificationPref } from '@/types'
@@ -23,6 +30,7 @@ export async function upsertNotificationPrefs(
     inAppEnabled: boolean
   },
 ): Promise<void> {
+  prefsSchema.parse(prefs)
   const existing = await getNotificationPrefs(userId)
 
   if (existing) {
